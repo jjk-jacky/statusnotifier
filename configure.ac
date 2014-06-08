@@ -30,6 +30,11 @@ AM_PROG_AR
 
 LT_INIT
 
+# Option for example
+AC_ARG_ENABLE([example],
+	AS_HELP_STRING([--enable-example], [enable the example]),
+	[wantexample=$enableval], [wantexample=no])
+
 # Option to use git version
 AC_ARG_ENABLE([git-version],
 	AS_HELP_STRING([--enable-git-version], [enable the use of git version]),
@@ -45,6 +50,14 @@ PKG_CHECK_MODULES(GOBJECT, [gobject-2.0], , AC_MSG_ERROR([GLib/GObject is requir
 PKG_CHECK_MODULES(GIO, [gio-2.0], , AC_MSG_ERROR([GLib/GIO is required]))
 PKG_CHECK_MODULES(GDK, [gdk-3.0], , AC_MSG_ERROR([GDK 3 is required]))
 PKG_CHECK_MODULES(GDK_PIXBUF, [gdk-pixbuf-2.0], , AC_MSG_ERROR([gdk-pixbuf is required]))
+if test "x$wantexample" = "xyes"; then
+    PKG_CHECK_MODULES(GTK, [gtk+-3.0],
+                      AC_DEFINE([EXAMPLE], , [Enable example]),
+                      AC_MSG_ERROR([GTK+3 is required for the example]))
+else
+    enable_example=no
+fi
+AM_CONDITIONAL(EXAMPLE, test "x$wantexample" = "xyes")
 
 DEP_PACKAGES="gobject-2.0 gio-2.0 gdk-3.0 gdk-pixbuf-2.0"
 DEP_CFLAGS="$GOBJECT_CFLAGS $GIO_CFLAGS $GDK_CFLAGS $GDK_PIXBUF_CFLAGS"
@@ -124,7 +137,7 @@ else
     AC_MSG_RESULT([no])
 fi
 
-AC_CONFIG_FILES([Makefile statusnotifier.pc
+AC_CONFIG_FILES([Makefile statusnotifier.pc example/Makefile
                  docs/reference/Makefile docs/reference/version.xml])
 AC_OUTPUT
 echo "
@@ -136,6 +149,7 @@ echo "
    compiler warning flags   : ${WARNING_CFLAGS}
 
    build html documentation : ${enable_gtk_doc}
+   example                  : ${enable_example}
 
  Install paths:
    binaries                 : $(eval echo $(eval echo ${bindir}))

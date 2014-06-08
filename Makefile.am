@@ -1,5 +1,8 @@
 
 SUBDIRS = . docs/reference
+if EXAMPLE
+SUBDIRS += example
+endif
 
 ACLOCAL_AMFLAGS = -I m4
 

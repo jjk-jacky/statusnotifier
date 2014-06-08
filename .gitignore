@@ -48,6 +48,7 @@ m4/ltversion.m4
 /libtool
 /libstatusnotifier.la
 /statusnotifier.pc
+/example/sn-example
 stamp-h1
 src/enums.h
 src/enums.c
