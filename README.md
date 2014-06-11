@@ -11,14 +11,15 @@ with the object's properties and signals.
 You can simply create a new StatusNotifier using one of the helper function,
 e.g. `status_notifier_new_from_icon_name()`, or simply creating an object as
 usual - you then just need to make sure to specify property `id` :
-    sn = (StatusNotifier *) g_object_new (TYPE_STATUS_NOTIFIER,
-         "id",                       "app-id",
-         "status",                   STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION,
-         "main-icon-name",           "app-icon",
-         "attention-icon-pixbuf",    pixbuf,
-         "tooltip-title",            "My tooltip",
-         "tooltip-body",             "This is an item about <b>app</b>",
-         NULL);
+
+	sn = (StatusNotifier *) g_object_new (TYPE_STATUS_NOTIFIER,
+	     "id",                       "app-id",
+	     "status",                   STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION,
+	     "main-icon-name",           "app-icon",
+	     "attention-icon-pixbuf",    pixbuf,
+	     "tooltip-title",            "My tooltip",
+	     "tooltip-body",             "This is an item about <b>app</b>",
+	     NULL);
 
 You can also set properties (other than `id`) after creation. Once ready, call
 `status_notifier_register()` to register the item on the session bus and to the
