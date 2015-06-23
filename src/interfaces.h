@@ -62,6 +62,9 @@ static const gchar item_xml[] =
     "       <property name='AttentionIconPixmap' type='(iiay)' access='read' />"
     "       <property name='AttentionMovieName' type='s' access='read' />"
     "       <property name='ToolTip' type='(s(iiay)ss)' access='read' />"
+#ifdef USE_DBUSMENU
+    "       <property name='Menu' type='o' access='read' />"
+#endif
     "       <method name='ContextMenu'>"
     "           <arg name='x' type='i' direction='in' />"
     "           <arg name='y' type='i' direction='in' />"

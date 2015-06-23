@@ -20,6 +20,8 @@
  * statusnotifier. If not, see http://www.gnu.org/licenses/
  */
 
+#include "config.h"
+
 #include <gtk/gtk.h>
 #include <statusnotifier.h>
 #include <string.h>
@@ -56,14 +58,18 @@ set_status (GObject *item, StatusNotifier *sn)
     status_notifier_set_status (sn, GPOINTER_TO_UINT (g_object_get_data (item, "sn-status")));
 }
 
-static gboolean
-sn_menu (StatusNotifier *sn, gint x, gint y, GMainLoop *loop)
+GtkMenu * get_menu(StatusNotifier *sn, GMainLoop *loop)
 {
-    GtkMenu *menu;
+    static GtkMenu *menu = 0;
     GtkMenu *submenu;
     GtkWidget *item;
     guint i;
     StatusNotifierStatus status;
+    
+    if (menu)
+    {
+        return menu;
+    }
 
     menu = (GtkMenu *) gtk_menu_new ();
     submenu = (GtkMenu *) gtk_menu_new ();
@@ -112,7 +118,14 @@ sn_menu (StatusNotifier *sn, gint x, gint y, GMainLoop *loop)
     ++i;
 
     g_object_ref_sink (menu);
-    g_signal_connect_swapped (menu, "hide", (GCallback) g_object_unref, menu);
+    return menu;
+}
+
+static gboolean
+sn_menu (StatusNotifier *sn, gint x, gint y, GMainLoop *loop)
+{
+    GtkMenu *menu = get_menu(sn, loop);
+
     gtk_menu_popup (menu, NULL, NULL, NULL, NULL, 0, gtk_get_current_event_time ());
     return TRUE;
 }
@@ -343,8 +356,13 @@ main (gint argc, gchar *argv[])
     if (cfg.tooltip_body)
         status_notifier_set_tooltip_body (sn, cfg.tooltip_body);
 
-    g_signal_connect (sn, "registration-failed", (GCallback) sn_reg_failed, loop);
+#ifdef USE_DBUSMENU
+    status_notifier_set_context_menu(sn, GTK_WIDGET(get_menu(sn, loop)));
+#else
     g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
+#endif
+
+    g_signal_connect (sn, "registration-failed", (GCallback) sn_reg_failed, loop);
     g_signal_connect_swapped (sn, "activate", (GCallback) sn_activate, loop);
     status_notifier_register (sn);
     g_main_loop_run (loop);

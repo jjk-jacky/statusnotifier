@@ -45,6 +45,14 @@ AC_ARG_ENABLE([warning-flags],
 	AS_HELP_STRING([--enable-warning-flags], [enable extra compiler warning flags]),
 	[warningflags=$enableval], [warningflags=no])
 
+AC_ARG_ENABLE([dbusmenu],
+	AS_HELP_STRING([--enable-dbusmenu], [enable extra dbusmenu functionality via libdbusmenu]),
+	[dbusmenu=$enableval], [dbusmenu=no])
+
+AC_ARG_WITH([dbusmenu-gtk-version],
+	AS_HELP_STRING([--with-dbusmenu-gtk-version], [Select libdbusmenu-gtk version to be built against if dbusmenu support enabled. Possible values: 2,3. Default: 3 ]),
+	[dbusmenugtkversion=$enableval], [dbusmenugtkversion=3])
+
 # Checks for libraries.
 PKG_CHECK_MODULES(GOBJECT, [gobject-2.0], , AC_MSG_ERROR([GLib/GObject is required]))
 PKG_CHECK_MODULES(GIO, [gio-2.0], , AC_MSG_ERROR([GLib/GIO is required]))
@@ -137,6 +145,49 @@ else
     AC_MSG_RESULT([no])
 fi
 
+if test "x$dbusmenu" = "xyes"; then
+    if test "x$dbusmenugtkversion" = "x2"; then
+        AC_MSG_NOTICE([dbusmenu support will be built against dbusmenu-gtk (gtk2)])
+    elif test "x$dbusmenugtkversion" = "x3"; then
+        AC_MSG_NOTICE([dbusmenu support will be built against dbusmenu-gtk3 (gtk3)])
+    else
+        dbusmenugtkversion=3;
+        AC_MSG_NOTICE([dbusmenu support will be built against dbusmenu-gtk3 (gtk3)])
+    fi
+
+    if test "x$dbusmenugtkversion" = "x2"; then
+        PKG_CHECK_MODULES(DBUSMENU, [dbusmenu-glib-0.4 dbusmenu-gtk-0.4], [
+            DEP_PACKAGES="${DEP_PACKAGES} dbusmenu-glib-0.4 dbusmenu-gtk-0.4"
+        ], [
+            AC_MSG_WARN([dbusmenu-glib and dbusmenu-gtk are required for dbusmenu support])
+            dbusmenu=no
+        ])
+    elif test "x$dbusmenugtkversion" = "x3"; then
+        PKG_CHECK_MODULES(DBUSMENU, [dbusmenu-glib-0.4 dbusmenu-gtk3-0.4], [
+            DEP_PACKAGES="${DEP_PACKAGES} dbusmenu-glib-0.4 dbusmenu-gtk3-0.4"
+        ], [
+            AC_MSG_WARN([dbusmenu-glib and dbusmenu-gtk3 are required for dbusmenu support])
+            dbusmenu=no
+        ])
+    fi
+fi
+
+AC_MSG_CHECKING([for dbusmenu support])
+if test "x$dbusmenu" = "xyes"; then
+    AC_MSG_RESULT([yes])
+    DEP_CFLAGS="$DEP_CFLAGS $DBUSMENU_CFLAGS"
+    DEP_LIBS="$DEP_LIBS $DBUSMENU_LIBS"
+    AC_SUBST(DEP_PACKAGES)
+    AC_SUBST(DEP_CFLAGS)
+    AC_SUBST(DEP_LIBS)
+    AC_DEFINE([USE_DBUSMENU], , [Use dbusmenu])
+    dbusmenu="will be built against GTK ${dbusmenugtkversion}"
+else
+    AC_MSG_RESULT([no])
+    dbusmenu=no
+fi
+AM_CONDITIONAL(USE_DBUSMENU, test "x$dbusmenu" != "xno")
+
 AC_CONFIG_FILES([Makefile statusnotifier.pc example/Makefile
                  docs/reference/Makefile docs/reference/version.xml])
 AC_OUTPUT
@@ -150,9 +201,11 @@ echo "
 
    build html documentation : ${enable_gtk_doc}
    example                  : ${enable_example}
+   dbusmenu                 : ${dbusmenu}
 
  Install paths:
    binaries                 : $(eval echo $(eval echo ${bindir}))
+   libraries                : $(eval echo $(eval echo ${libdir}))
    documentation            : $(eval echo $(eval echo ${docdir}))
    man pages                : $(eval echo $(eval echo ${mandir}))
 "
