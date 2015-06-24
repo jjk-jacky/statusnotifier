@@ -22,6 +22,7 @@
 
 #include "config.h"
 
+#include <glib.h>
 #include <gtk/gtk.h>
 #include <statusnotifier.h>
 #include <string.h>
@@ -68,6 +69,7 @@ GtkMenu *get_menu (StatusNotifier *sn, GMainLoop *loop)
     GtkWidget *item;
     guint i;
     StatusNotifierStatus status;
+    GSList *group = NULL;
 
     if (menu)
         return menu;
@@ -78,33 +80,40 @@ GtkMenu *get_menu (StatusNotifier *sn, GMainLoop *loop)
     g_object_get (sn, "status", &status, NULL);
 
     i = 0;
-    item = gtk_check_menu_item_new_with_label ("Passive");
+
+    item = gtk_radio_menu_item_new_with_label (group, "Passive");
+    group = gtk_radio_menu_item_get_group ((GtkRadioMenuItem *) item);
     if (status == STATUS_NOTIFIER_STATUS_PASSIVE)
         gtk_check_menu_item_set_active ((GtkCheckMenuItem *) item, TRUE);
     g_object_set_data ((GObject *) item,
             "sn-status", GUINT_TO_POINTER (STATUS_NOTIFIER_STATUS_PASSIVE));
-    g_signal_connect (item, "activate", (GCallback) set_status, sn);
     gtk_widget_show (item);
     gtk_menu_attach (submenu, item, 0, 1, i, i + 1);
     ++i;
-    item = gtk_check_menu_item_new_with_label ("Active");
+    item = gtk_radio_menu_item_new_with_label (group, "Active");
+    group = gtk_radio_menu_item_get_group ((GtkRadioMenuItem *) item);
     if (status == STATUS_NOTIFIER_STATUS_ACTIVE)
         gtk_check_menu_item_set_active ((GtkCheckMenuItem *) item, TRUE);
     g_object_set_data ((GObject *) item,
             "sn-status", GUINT_TO_POINTER (STATUS_NOTIFIER_STATUS_ACTIVE));
-    g_signal_connect (item, "activate", (GCallback) set_status, sn);
     gtk_widget_show (item);
     gtk_menu_attach (submenu, item, 0, 1, i, i + 1);
     ++i;
-    item = gtk_check_menu_item_new_with_label ("Needs attention");
+    item = gtk_radio_menu_item_new_with_label (group, "Needs attention");
+    group = gtk_radio_menu_item_get_group ((GtkRadioMenuItem *) item);
     if (status == STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION)
         gtk_check_menu_item_set_active ((GtkCheckMenuItem *) item, TRUE);
     g_object_set_data ((GObject *) item,
             "sn-status", GUINT_TO_POINTER (STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION));
-    g_signal_connect (item, "activate", (GCallback) set_status, sn);
     gtk_widget_show (item);
     gtk_menu_attach (submenu, item, 0, 1, i, i + 1);
     ++i;
+
+    void radio_set_cb (gpointer item, gpointer data)
+    {
+        g_signal_connect (item, "activate", (GCallback) set_status, sn);
+    }
+    g_slist_foreach (group, &radio_set_cb, NULL);
 
     i = 0;
     item = gtk_menu_item_new_with_label ("Status");
