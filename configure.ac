@@ -159,15 +159,14 @@ if test "x$dbusmenu" = "xyes"; then
         PKG_CHECK_MODULES(DBUSMENU, [dbusmenu-glib-0.4 dbusmenu-gtk-0.4], [
             DEP_PACKAGES="${DEP_PACKAGES} dbusmenu-glib-0.4 dbusmenu-gtk-0.4"
         ], [
-            AC_MSG_WARN([dbusmenu-glib and dbusmenu-gtk are required for dbusmenu support])
-            dbusmenu=no
+            AC_MSG_ERROR([dbusmenu-glib and dbusmenu-gtk are required for dbusmenu support])
         ])
+
     elif test "x$dbusmenugtkversion" = "x3"; then
         PKG_CHECK_MODULES(DBUSMENU, [dbusmenu-glib-0.4 dbusmenu-gtk3-0.4], [
             DEP_PACKAGES="${DEP_PACKAGES} dbusmenu-glib-0.4 dbusmenu-gtk3-0.4"
         ], [
-            AC_MSG_WARN([dbusmenu-glib and dbusmenu-gtk3 are required for dbusmenu support])
-            dbusmenu=no
+            AC_MSG_ERROR([dbusmenu-glib and dbusmenu-gtk3 are required for dbusmenu support])
         ])
     fi
 fi

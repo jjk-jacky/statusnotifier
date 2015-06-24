@@ -50,6 +50,9 @@ struct config
     } icon[_NB_STATUS_NOTIFIER_ICONS];
     gchar *tooltip_title;
     gchar *tooltip_body;
+#ifdef USE_DBUSMENU
+    gboolean menu;
+#endif
 };
 
 static void
@@ -58,18 +61,16 @@ set_status (GObject *item, StatusNotifier *sn)
     status_notifier_set_status (sn, GPOINTER_TO_UINT (g_object_get_data (item, "sn-status")));
 }
 
-GtkMenu * get_menu(StatusNotifier *sn, GMainLoop *loop)
+GtkMenu *get_menu (StatusNotifier *sn, GMainLoop *loop)
 {
-    static GtkMenu *menu = 0;
+    static GtkMenu *menu = NULL;
     GtkMenu *submenu;
     GtkWidget *item;
     guint i;
     StatusNotifierStatus status;
-    
+
     if (menu)
-    {
         return menu;
-    }
 
     menu = (GtkMenu *) gtk_menu_new ();
     submenu = (GtkMenu *) gtk_menu_new ();
@@ -293,6 +294,10 @@ parse_cmdline (struct config *cfg, gint *argc, gchar **argv[], GError **error)
             "Set TITLE as title of the item's tooltip", "TITLE" },
         { "tooltip-body",       'b',    0, G_OPTION_ARG_STRING,     &cfg->tooltip_body,
             "Set TEXT as body of the item's tooltip", "TEXT" },
+#ifdef USE_DBUSMENU
+        { "dbus-menu",       'm',    0, G_OPTION_ARG_NONE,     &cfg->menu,
+            "Whether menu should be exposed via dbusmenu or not", NULL },
+#endif
         { NULL }
     };
     GOptionGroup *group;
@@ -357,7 +362,10 @@ main (gint argc, gchar *argv[])
         status_notifier_set_tooltip_body (sn, cfg.tooltip_body);
 
 #ifdef USE_DBUSMENU
-    status_notifier_set_context_menu(sn, GTK_WIDGET(get_menu(sn, loop)));
+    if (cfg.menu)
+        status_notifier_set_context_menu (sn, (GtkWidget *) get_menu(sn, loop));
+    else
+        g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
 #else
     g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
 #endif
