@@ -62,17 +62,14 @@ set_status (GObject *item, StatusNotifier *sn)
     status_notifier_set_status (sn, GPOINTER_TO_UINT (g_object_get_data (item, "sn-status")));
 }
 
-GtkMenu *get_menu (StatusNotifier *sn, GMainLoop *loop)
+GtkMenu *create_menu (StatusNotifier *sn, GMainLoop *loop)
 {
-    static GtkMenu *menu = NULL;
+    GtkMenu *menu;
     GtkMenu *submenu;
     GtkWidget *item;
     guint i;
     StatusNotifierStatus status;
     GSList *group = NULL;
-
-    if (menu)
-        return menu;
 
     menu = (GtkMenu *) gtk_menu_new ();
     submenu = (GtkMenu *) gtk_menu_new ();
@@ -134,7 +131,11 @@ GtkMenu *get_menu (StatusNotifier *sn, GMainLoop *loop)
 static gboolean
 sn_menu (StatusNotifier *sn, gint x, gint y, GMainLoop *loop)
 {
-    GtkMenu *menu = get_menu(sn, loop);
+    static GtkMenu *menu = NULL;
+    if (!menu) {
+        menu = create_menu (sn, loop);
+        g_object_ref (menu);
+    }
 
     gtk_menu_popup (menu, NULL, NULL, NULL, NULL, 0, gtk_get_current_event_time ());
     return TRUE;
@@ -372,7 +373,7 @@ main (gint argc, gchar *argv[])
 
 #ifdef USE_DBUSMENU
     if (cfg.menu)
-        status_notifier_set_context_menu (sn, (GtkWidget *) get_menu(sn, loop));
+        status_notifier_set_context_menu (sn, (GtkWidget *) create_menu(sn, loop));
     else
         g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
 #else
