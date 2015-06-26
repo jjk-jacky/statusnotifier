@@ -54,12 +54,19 @@ struct config
 #ifdef USE_DBUSMENU
     gboolean menu;
 #endif
+    gboolean is_menu;
 };
 
 static void
 set_status (GObject *item, StatusNotifier *sn)
 {
     status_notifier_set_status (sn, GPOINTER_TO_UINT (g_object_get_data (item, "sn-status")));
+}
+
+static void
+set_status_activation_trigger (gpointer item, gpointer sn)
+{
+    g_signal_connect (item, "activate", (GCallback) set_status, sn);
 }
 
 GtkMenu *create_menu (StatusNotifier *sn, GMainLoop *loop)
@@ -106,11 +113,7 @@ GtkMenu *create_menu (StatusNotifier *sn, GMainLoop *loop)
     gtk_menu_attach (submenu, item, 0, 1, i, i + 1);
     ++i;
 
-    void radio_set_cb (gpointer item, gpointer data)
-    {
-        g_signal_connect (item, "activate", (GCallback) set_status, sn);
-    }
-    g_slist_foreach (group, &radio_set_cb, NULL);
+    g_slist_foreach (group, &set_status_activation_trigger, sn);
 
     i = 0;
     item = gtk_menu_item_new_with_label ("Status");
@@ -132,9 +135,10 @@ static gboolean
 sn_menu (StatusNotifier *sn, gint x, gint y, GMainLoop *loop)
 {
     static GtkMenu *menu = NULL;
-    if (!menu) {
+    if (!menu)
+    {
         menu = create_menu (sn, loop);
-        g_object_ref (menu);
+        g_object_ref_sink (menu);
     }
 
     gtk_menu_popup (menu, NULL, NULL, NULL, NULL, 0, gtk_get_current_event_time ());
@@ -305,9 +309,11 @@ parse_cmdline (struct config *cfg, gint *argc, gchar **argv[], GError **error)
         { "tooltip-body",       'b',    0, G_OPTION_ARG_STRING,     &cfg->tooltip_body,
             "Set TEXT as body of the item's tooltip", "TEXT" },
 #ifdef USE_DBUSMENU
-        { "dbus-menu",       'm',    0, G_OPTION_ARG_NONE,     &cfg->menu,
+        { "dbus-menu",          'm',    0, G_OPTION_ARG_NONE,     &cfg->menu,
             "Whether menu should be exposed via dbusmenu or not", NULL },
 #endif
+        { "is-menu",            'M',    0, G_OPTION_ARG_NONE,     &cfg->is_menu,
+            "Whether application has only menu or it has window", NULL },
         { NULL }
     };
     GOptionGroup *group;
@@ -371,14 +377,13 @@ main (gint argc, gchar *argv[])
     if (cfg.tooltip_body)
         status_notifier_set_tooltip_body (sn, cfg.tooltip_body);
 
+    status_notifier_set_item_is_menu (sn, cfg.is_menu);
 #ifdef USE_DBUSMENU
     if (cfg.menu)
         status_notifier_set_context_menu (sn, (GtkWidget *) create_menu(sn, loop));
     else
-        g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
-#else
-    g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
 #endif
+        g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
 
     g_signal_connect (sn, "registration-failed", (GCallback) sn_reg_failed, loop);
     g_signal_connect_swapped (sn, "activate", (GCallback) sn_activate, loop);
