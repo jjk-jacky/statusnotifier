@@ -65,7 +65,6 @@ static const gchar item_xml[] =
 #ifdef USE_DBUSMENU
     "       <property name='Menu' type='o' access='read' />"
 #endif
-    "       <property name='ItemIsMenu' type='b' access='read' />"
     "       <method name='ContextMenu'>"
     "           <arg name='x' type='i' direction='in' />"
     "           <arg name='y' type='i' direction='in' />"

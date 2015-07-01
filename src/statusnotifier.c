@@ -99,7 +99,6 @@ enum
 #ifdef USE_DBUSMENU
     PROP_MENU,
 #endif
-    PROP_IS_MENU,
     PROP_WINDOW_ID,
 
     PROP_STATE,
@@ -160,7 +159,6 @@ struct _StatusNotifierPrivate
     DbusmenuServer *menuservice;
     GtkWidget  *menu;
 #endif
-    gboolean is_menu;
     GDBusConnection *dbus_conn;
     GError *dbus_err;
 };
@@ -471,23 +469,6 @@ status_notifier_class_init (StatusNotifierClass *klass)
                 G_PARAM_READWRITE);
 #endif
 
-     /**
-     * StatusNotifier:item-is-menu:
-     *
-     * Whether this appliaction has main window or not.
-     * If this is set to true then no activate signals will be emmited.
-     * Instead, when LMB pressed, "context-menu" will be emmited.
-     * If there is a setuped context #StatusNotifier:menu, then
-     * it will be shown istead of "context-menu" signal emition.
-     * 
-     * This behavior at least supported by KDE.
-     */
-    status_notifier_props[PROP_IS_MENU] =
-        g_param_spec_boolean ("item-is-menu", "item-is-menu",
-                "Whether this appliaction has no main window or not.",
-                FALSE,
-                G_PARAM_READWRITE);
-
     /**
      * StatusNotifier:window-id:
      *
@@ -729,9 +710,6 @@ status_notifier_set_property (GObject            *object,
             status_notifier_set_context_menu (sn, g_value_get_object (value));
             break;
 #endif
-        case PROP_IS_MENU:
-            status_notifier_set_item_is_menu (sn, g_value_get_boolean (value));
-            break;
         case PROP_WINDOW_ID:
             status_notifier_set_window_id (sn, g_value_get_uint (value));
         default:
@@ -809,9 +787,6 @@ status_notifier_get_property (GObject            *object,
             g_value_set_object (value, status_notifier_get_context_menu (sn));
             break;
 #endif
-        case PROP_IS_MENU:
-            g_value_set_boolean (value, status_notifier_get_item_is_menu (sn));
-            break;
         case PROP_WINDOW_ID:
             g_value_set_uint (value, priv->window_id);
         case PROP_STATE:
@@ -1714,10 +1689,6 @@ get_prop (GDBusConnection        *conn,
             return g_variant_new ("o", "/NO_DBUSMENU");
     }
 #endif
-    else if (!g_strcmp0 (property, "ItemIsMenu"))
-    {
-        return g_variant_new("b", priv->is_menu);
-    }
 
     g_return_val_if_reached (NULL);
 }
@@ -2104,39 +2075,3 @@ status_notifier_get_context_menu (StatusNotifier          *sn)
     return priv->menu;
 }
 #endif
-
-/**
- * status_notifier_set_item_is_menu:
- * @sn: A #StatusNotifier
- * @is_menu: #boolean whether this application has only menu or not
- * 
- * See #StatusNotifier:item-is-menu for description.
- */
-void
-status_notifier_set_item_is_menu (StatusNotifier          *sn,
-                                  gboolean                is_menu)
-{
-    StatusNotifierPrivate *priv;
-
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
-    priv = sn->priv;
-
-    priv->is_menu = is_menu;
-}
-
-/**
- * status_notifier_get_item_is_menu:
- * @sn: A #StatusNotifier
- * 
- * Returns: whether this application has only menu or not
- */
-gboolean
-status_notifier_get_item_is_menu (StatusNotifier          *sn)
-{
-    StatusNotifierPrivate *priv;
-
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
-    priv = sn->priv;
-
-    return priv->is_menu;
-}

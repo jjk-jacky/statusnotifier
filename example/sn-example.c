@@ -54,7 +54,6 @@ struct config
 #ifdef USE_DBUSMENU
     gboolean menu;
 #endif
-    gboolean is_menu;
 };
 
 static void
@@ -127,7 +126,6 @@ GtkMenu *create_menu (StatusNotifier *sn, GMainLoop *loop)
     gtk_menu_attach (menu, item, 0, 1, i, i + 1);
     ++i;
 
-    g_object_ref_sink (menu);
     return menu;
 }
 
@@ -312,8 +310,6 @@ parse_cmdline (struct config *cfg, gint *argc, gchar **argv[], GError **error)
         { "dbus-menu",          'm',    0, G_OPTION_ARG_NONE,     &cfg->menu,
             "Whether menu should be exposed via dbusmenu or not", NULL },
 #endif
-        { "is-menu",            'M',    0, G_OPTION_ARG_NONE,     &cfg->is_menu,
-            "Whether application has only menu or it has window", NULL },
         { NULL }
     };
     GOptionGroup *group;
@@ -377,7 +373,6 @@ main (gint argc, gchar *argv[])
     if (cfg.tooltip_body)
         status_notifier_set_tooltip_body (sn, cfg.tooltip_body);
 
-    status_notifier_set_item_is_menu (sn, cfg.is_menu);
 #ifdef USE_DBUSMENU
     if (cfg.menu)
         status_notifier_set_context_menu (sn, (GtkWidget *) create_menu(sn, loop));

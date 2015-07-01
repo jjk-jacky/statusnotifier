@@ -308,11 +308,6 @@ void                    status_notifier_set_context_menu (
 GtkWidget *             status_notifier_get_context_menu (
                                             StatusNotifier          *sn);
 #endif
-void                    status_notifier_set_item_is_menu (
-                                            StatusNotifier          *sn,
-                                            gboolean                is_menu);
-gboolean                status_notifier_get_item_is_menu (
-                                            StatusNotifier          *sn);
 
 G_END_DECLS
 
