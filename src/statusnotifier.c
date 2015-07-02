@@ -678,6 +678,7 @@ status_notifier_set_property (GObject            *object,
             break;
         case PROP_WINDOW_ID:
             status_notifier_set_window_id (sn, g_value_get_uint (value));
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -750,6 +751,7 @@ status_notifier_get_property (GObject            *object,
             break;
         case PROP_WINDOW_ID:
             g_value_set_uint (value, priv->window_id);
+            break;
         case PROP_STATE:
             g_value_set_enum (value, priv->state);
             break;
