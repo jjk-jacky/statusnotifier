@@ -1,17 +1,10 @@
 #!/bin/bash
 
-echo "#ifndef __STATUS_NOTIFIER_ENUMS_H__" > enums.h
-echo "#define __STATUS_NOTIFIER_ENUMS_H__" >> enums.h
-echo "#include \"statusnotifier.h\"" >> enums.h
 glib-mkenums \
-    --vhead "GType @enum_name@_get_type (void);\n#define TYPE_@ENUMNAME@ (@enum_name@_get_type())\n" \
-    --ftail "G_END_DECLS\n\n#endif /* __STATUS_NOTIFIER_ENUMS_H__ */" \
-    statusnotifier.h >> enums.h
+    --template enums.h.template \
+    statusnotifier.h > enums.h
 
 glib-mkenums \
-    --fhead "#include \"enums.h\"\n" \
-    --vhead "GType\n@enum_name@_get_type (void)\n{\n  static GType etype = 0;\n  if (etype == 0) {\n    static const G@Type@Value values[] = {" \
-    --vprod " { @VALUENAME@, \"@VALUENAME@\", \"@valuenick@\" }," \
-    --vtail "      { 0, NULL, NULL }\n    };\n    etype = g_@type@_register_static (\"@EnumName@\", values);\n  }\n  return etype;\n}\n" \
+    --template enums.c.template \
     statusnotifier.h > enums.c
 
