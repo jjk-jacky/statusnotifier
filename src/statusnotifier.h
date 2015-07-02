@@ -27,6 +27,9 @@
 #include <glib-object.h>
 #include <gio/gio.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#ifdef USE_DBUSMENU
+#include <gtk/gtk.h>
+#endif
 
 G_BEGIN_DECLS
 
@@ -298,6 +301,13 @@ void                    status_notifier_register (
                                             StatusNotifier          *sn);
 StatusNotifierState     status_notifier_get_state (
                                             StatusNotifier          *sn);
+#ifdef USE_DBUSMENU
+void                    status_notifier_set_context_menu (
+                                            StatusNotifier          *sn,
+                                            GtkWidget               *menu);
+GtkWidget *             status_notifier_get_context_menu (
+                                            StatusNotifier          *sn);
+#endif
 
 G_END_DECLS
 
