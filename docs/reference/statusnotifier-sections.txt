@@ -34,6 +34,8 @@ status_notifier_set_tooltip_title
 status_notifier_get_tooltip_title
 status_notifier_set_tooltip_body
 status_notifier_get_tooltip_body
+status_notifier_set_context_menu
+status_notifier_get_context_menu
 status_notifier_register
 status_notifier_get_state
 <SUBSECTION Standard>

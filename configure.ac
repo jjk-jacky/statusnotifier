@@ -45,6 +45,10 @@ AC_ARG_ENABLE([warning-flags],
 	AS_HELP_STRING([--enable-warning-flags], [enable extra compiler warning flags]),
 	[warningflags=$enableval], [warningflags=no])
 
+AC_ARG_ENABLE([dbusmenu],
+	AS_HELP_STRING([--enable-dbusmenu], [enable extra dbusmenu functionality via libdbusmenu]),
+	[dbusmenu=$enableval], [dbusmenu=no])
+
 # Checks for libraries.
 PKG_CHECK_MODULES(GOBJECT, [gobject-2.0], , AC_MSG_ERROR([GLib/GObject is required]))
 PKG_CHECK_MODULES(GIO, [gio-2.0], , AC_MSG_ERROR([GLib/GIO is required]))
@@ -62,6 +66,30 @@ AM_CONDITIONAL(EXAMPLE, test "x$wantexample" = "xyes")
 DEP_PACKAGES="gobject-2.0 gio-2.0 gdk-3.0 gdk-pixbuf-2.0"
 DEP_CFLAGS="$GOBJECT_CFLAGS $GIO_CFLAGS $GDK_CFLAGS $GDK_PIXBUF_CFLAGS"
 DEP_LIBS="$GOBJECT_LIBS $GIO_LIBS $GDK_LIBS $GDK_PIXBUF_LIBS"
+
+# dbusmenu support
+if test "x$dbusmenu" = "xyes"; then
+    # we require GTK to deal with GtkWidget-s (menu to export)
+    PKG_CHECK_MODULES(GTK, [gtk+-3.0], ,
+        AC_MSG_ERROR([GTK+3 is required for dbusmenu support]))
+    DEP_PACKAGES="$DEP_PACKAGES gtk+-3.0"
+    DEP_CFLAGS="$DEP_CFLAGS $GTK_CFLAGS"
+    DEP_LIBS="$DEP_LIBS $GTK_LIBS"
+
+    PKG_CHECK_MODULES(DBUSMENU, [dbusmenu-glib-0.4 dbusmenu-gtk3-0.4], ,
+        AC_MSG_ERROR([dbusmenu-glib and dbusmenu-gtk3 are required for dbusmenu support])
+    ])
+    DEP_PACKAGES="$DEP_PACKAGES dbusmenu-glib-0.4 dbusmenu-gtk3-0.4"
+    DEP_CFLAGS="$DEP_CFLAGS $DBUSMENU_CFLAGS"
+    DEP_LIBS="$DEP_LIBS $DBUSMENU_LIBS"
+
+    AC_DEFINE([USE_DBUSMENU], , [Use dbusmenu])
+    dbusmenu=yes
+else
+    dbusmenu=no
+fi
+AM_CONDITIONAL(USE_DBUSMENU, test "x$dbusmenu" = "xyes")
+
 AC_SUBST(DEP_PACKAGES)
 AC_SUBST(DEP_CFLAGS)
 AC_SUBST(DEP_LIBS)
@@ -150,9 +178,11 @@ echo "
 
    build html documentation : ${enable_gtk_doc}
    example                  : ${enable_example}
+   dbusmenu                 : ${dbusmenu}
 
  Install paths:
    binaries                 : $(eval echo $(eval echo ${bindir}))
+   libraries                : $(eval echo $(eval echo ${libdir}))
    documentation            : $(eval echo $(eval echo ${docdir}))
    man pages                : $(eval echo $(eval echo ${mandir}))
 "
