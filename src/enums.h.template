@@ -1,0 +1,25 @@
+/*** BEGIN file-header ***/
+
+#ifndef STATUS_NOTIFIER_ENUMS_H
+#define STATUS_NOTIFIER_ENUMS_H
+
+#include "statusnotifier.h"
+
+G_BEGIN_DECLS
+/*** END file-header ***/
+
+/*** BEGIN file-production ***/
+
+/* enumerations from "statusnotifier.h" */
+/*** END file-production ***/
+
+/*** BEGIN value-header ***/
+GType @enum_name@_get_type (void) G_GNUC_CONST;
+#define TYPE_@ENUMNAME@ (@enum_name@_get_type ())
+/*** END value-header ***/
+
+/*** BEGIN file-tail ***/
+G_END_DECLS
+
+#endif /* !STATUS_NOTIFIER_ENUMS_H */
+/*** END file-tail ***/
