@@ -1468,7 +1468,7 @@ method_call (GDBusConnection        *conn,
         gchar *s_orientation;
 
         g_variant_get (params, "(is)", &delta, &s_orientation);
-        if (!g_strcmp0 (s_orientation, "vertical"))
+        if (!g_ascii_strcasecmp (s_orientation, "vertical"))
             orientation = STATUS_NOTIFIER_SCROLL_ORIENTATION_VERTICAL;
         else
             orientation = STATUS_NOTIFIER_SCROLL_ORIENTATION_HORIZONTAL;
