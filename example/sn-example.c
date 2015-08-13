@@ -20,6 +20,9 @@
  * statusnotifier. If not, see http://www.gnu.org/licenses/
  */
 
+#include "config.h"
+
+#include <glib.h>
 #include <gtk/gtk.h>
 #include <statusnotifier.h>
 #include <string.h>
@@ -48,6 +51,9 @@ struct config
     } icon[_NB_STATUS_NOTIFIER_ICONS];
     gchar *tooltip_title;
     gchar *tooltip_body;
+#ifdef USE_DBUSMENU
+    gboolean menu;
+#endif
 };
 
 static void
@@ -56,14 +62,21 @@ set_status (GObject *item, StatusNotifier *sn)
     status_notifier_set_status (sn, GPOINTER_TO_UINT (g_object_get_data (item, "sn-status")));
 }
 
-static gboolean
-sn_menu (StatusNotifier *sn, gint x, gint y, GMainLoop *loop)
+static void
+set_status_activation_trigger (gpointer item, gpointer sn)
+{
+    g_signal_connect (item, "activate", (GCallback) set_status, sn);
+}
+
+static GtkMenu *
+create_menu (StatusNotifier *sn, GMainLoop *loop)
 {
     GtkMenu *menu;
     GtkMenu *submenu;
     GtkWidget *item;
     guint i;
     StatusNotifierStatus status;
+    GSList *group = NULL;
 
     menu = (GtkMenu *) gtk_menu_new ();
     submenu = (GtkMenu *) gtk_menu_new ();
@@ -71,33 +84,36 @@ sn_menu (StatusNotifier *sn, gint x, gint y, GMainLoop *loop)
     g_object_get (sn, "status", &status, NULL);
 
     i = 0;
-    item = gtk_check_menu_item_new_with_label ("Passive");
+
+    item = gtk_radio_menu_item_new_with_label (group, "Passive");
+    group = gtk_radio_menu_item_get_group ((GtkRadioMenuItem *) item);
     if (status == STATUS_NOTIFIER_STATUS_PASSIVE)
         gtk_check_menu_item_set_active ((GtkCheckMenuItem *) item, TRUE);
     g_object_set_data ((GObject *) item,
             "sn-status", GUINT_TO_POINTER (STATUS_NOTIFIER_STATUS_PASSIVE));
-    g_signal_connect (item, "activate", (GCallback) set_status, sn);
     gtk_widget_show (item);
     gtk_menu_attach (submenu, item, 0, 1, i, i + 1);
     ++i;
-    item = gtk_check_menu_item_new_with_label ("Active");
+    item = gtk_radio_menu_item_new_with_label (group, "Active");
+    group = gtk_radio_menu_item_get_group ((GtkRadioMenuItem *) item);
     if (status == STATUS_NOTIFIER_STATUS_ACTIVE)
         gtk_check_menu_item_set_active ((GtkCheckMenuItem *) item, TRUE);
     g_object_set_data ((GObject *) item,
             "sn-status", GUINT_TO_POINTER (STATUS_NOTIFIER_STATUS_ACTIVE));
-    g_signal_connect (item, "activate", (GCallback) set_status, sn);
     gtk_widget_show (item);
     gtk_menu_attach (submenu, item, 0, 1, i, i + 1);
     ++i;
-    item = gtk_check_menu_item_new_with_label ("Needs attention");
+    item = gtk_radio_menu_item_new_with_label (group, "Needs attention");
+    group = gtk_radio_menu_item_get_group ((GtkRadioMenuItem *) item);
     if (status == STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION)
         gtk_check_menu_item_set_active ((GtkCheckMenuItem *) item, TRUE);
     g_object_set_data ((GObject *) item,
             "sn-status", GUINT_TO_POINTER (STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION));
-    g_signal_connect (item, "activate", (GCallback) set_status, sn);
     gtk_widget_show (item);
     gtk_menu_attach (submenu, item, 0, 1, i, i + 1);
     ++i;
+
+    g_slist_foreach (group, &set_status_activation_trigger, sn);
 
     i = 0;
     item = gtk_menu_item_new_with_label ("Status");
@@ -111,8 +127,19 @@ sn_menu (StatusNotifier *sn, gint x, gint y, GMainLoop *loop)
     gtk_menu_attach (menu, item, 0, 1, i, i + 1);
     ++i;
 
-    g_object_ref_sink (menu);
-    g_signal_connect_swapped (menu, "hide", (GCallback) g_object_unref, menu);
+    return menu;
+}
+
+static gboolean
+sn_menu (StatusNotifier *sn, gint x, gint y, GMainLoop *loop)
+{
+    static GtkMenu *menu = NULL;
+    if (!menu)
+    {
+        menu = create_menu (sn, loop);
+        g_object_ref_sink (menu);
+    }
+
     gtk_menu_popup (menu, NULL, NULL, NULL, NULL, 0, gtk_get_current_event_time ());
     return TRUE;
 }
@@ -280,6 +307,10 @@ parse_cmdline (struct config *cfg, gint *argc, gchar **argv[], GError **error)
             "Set TITLE as title of the item's tooltip", "TITLE" },
         { "tooltip-body",       'b',    0, G_OPTION_ARG_STRING,     &cfg->tooltip_body,
             "Set TEXT as body of the item's tooltip", "TEXT" },
+#ifdef USE_DBUSMENU
+        { "dbus-menu",          'm',    0, G_OPTION_ARG_NONE,       &cfg->menu,
+            "Whether menu should be exposed via dbusmenu or not", NULL },
+#endif
         { NULL }
     };
     GOptionGroup *group;
@@ -343,8 +374,14 @@ main (gint argc, gchar *argv[])
     if (cfg.tooltip_body)
         status_notifier_set_tooltip_body (sn, cfg.tooltip_body);
 
+#ifdef USE_DBUSMENU
+    if (cfg.menu)
+        status_notifier_set_context_menu (sn, (GtkWidget *) create_menu(sn, loop));
+    else
+#endif
+        g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
+
     g_signal_connect (sn, "registration-failed", (GCallback) sn_reg_failed, loop);
-    g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
     g_signal_connect_swapped (sn, "activate", (GCallback) sn_activate, loop);
     status_notifier_register (sn);
     g_main_loop_run (loop);
