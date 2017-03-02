@@ -39,7 +39,7 @@ typedef struct _StatusNotifierClass         StatusNotifierClass;
 
 #define TYPE_STATUS_NOTIFIER                (status_notifier_get_type ())
 #define STATUS_NOTIFIER(obj)                (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_STATUS_NOTIFIER, StatusNotifier))
-#define STATUS_NOTIFIER_CLASS(klass)        (G_TYPE_CHECK_CLASS_CAST ((klass), TYPE_STATUS_NOTIFIER, StatusNotiferClass))
+#define STATUS_NOTIFIER_CLASS(klass)        (G_TYPE_CHECK_CLASS_CAST ((klass), TYPE_STATUS_NOTIFIER, StatusNotifierClass))
 #define IS_STATUS_NOTIFIER(obj)             (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_STATUS_NOTIFIER))
 #define IS_STATUS_NOTIFIER_CLASS(klass)     (G_TYPE_CHECK_CLASS_TYPE ((obj), TYPE_STATUS_NOTIFIER))
 #define STATUS_NOTIFIER_GET_CLASS(obj)      (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_STATUS_NOTIFIER, StatusNotifierClass))
