@@ -37,7 +37,7 @@ Simple as that.
 
 ## Free Software
 
-statusnotifier - Copyright (C) 2014 Olivier Brunel <jjk@jjacky.com>
+statusnotifier - Copyright (C) 2014-2017 Olivier Brunel <jjk@jjacky.com>
 
 statusnotifier is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software

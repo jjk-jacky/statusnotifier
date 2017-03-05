@@ -1,8 +1,8 @@
 /*
- * statusnotifier - Copyright (C) 2014 Olivier Brunel
+ * statusnotifier - Copyright (C) 2014-2017 Olivier Brunel
  *
  * interfaces.h
- * Copyright (C) 2014 Olivier Brunel <jjk@jjacky.com>
+ * Copyright (C) 2014-2017 Olivier Brunel <jjk@jjacky.com>
  *
  * This file is part of statusnotifier.
  *
