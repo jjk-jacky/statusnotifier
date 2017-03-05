@@ -3,6 +3,7 @@
 
 AC_PREREQ([2.69])
 AC_INIT([statusnotifier], [0.1.0], [jjk@jjacky.com])
+GIR_VERSION=0.0
 AC_CONFIG_SRCDIR([src/statusnotifier.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
@@ -93,6 +94,7 @@ AM_CONDITIONAL(USE_DBUSMENU, test "x$dbusmenu" = "xyes")
 # introspection
 GOBJECT_INTROSPECTION_CHECK([0.6.3])
 
+AC_SUBST(GIR_VERSION)
 AC_SUBST(DEP_PACKAGES)
 AC_SUBST(DEP_CFLAGS)
 AC_SUBST(DEP_LIBS)

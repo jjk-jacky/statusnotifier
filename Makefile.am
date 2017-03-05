@@ -59,7 +59,7 @@ GIR_EXTRA += -DUSE_DBUSMENU=1 --include=Gtk-3.0
 endif
 StatusNotifier-$(PACKAGE_VERSION).gir: $(INTROSPECTION_SCANNER) libstatusnotifier.la
 	$(AM_V_GEN) $(INTROSPECTION_SCANNER) \
-		-v --warn-all -n StatusNotifier --nsversion=0.0 \
+		-v --warn-all -n StatusNotifier --nsversion=$(GIR_VERSION) \
 		--include=GObject-2.0 --include=GdkPixbuf-2.0 \
 		$(INCLUDES) $(GIR_EXTRA) \
 		--library=statusnotifier -o $@ \
