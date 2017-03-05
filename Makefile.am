@@ -41,8 +41,8 @@ EXTRA_DIST = \
 	src/mkenums
 
 src/enums.h: src/statusnotifier.h
-	$(AM_V_GEN) cd $(top_srcdir}/src && ./mkenums
+	$(AM_V_GEN) cd $(top_srcdir)/src && ./mkenums
 
 src/enums.c: src/statusnotifier.h
-	$(AM_V_GEN) cd $(top_srcdir}/src && ./mkenums
+	$(AM_V_GEN) cd $(top_srcdir)/src && ./mkenums
 
