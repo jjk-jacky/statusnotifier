@@ -55,7 +55,7 @@ statusnotifier (COPYING). If not, see http://www.gnu.org/licenses/
 
 Some useful links if you're looking for more info:
 
-- [official site](http://jjacky.com/statusnotifier "statusnotifier @ jjacky.com")
+- [official site](https://jjacky.com/statusnotifier "statusnotifier @ jjacky.com")
 
 - [source code & issue tracker](https://github.com/jjk-jacky/statusnotifier "statusnotifier @ GitHub.com")
 
