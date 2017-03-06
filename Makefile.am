@@ -51,13 +51,13 @@ src/enums.c: src/statusnotifier.h
 
 
 if HAVE_INTROSPECTION
-BUILT_GIRSOURCES = StatusNotifier-$(PACKAGE_VERSION).gir
+BUILT_GIRSOURCES = StatusNotifier-$(GIR_VERSION).gir
 
 GIR_EXTRA =
 if USE_DBUSMENU
 GIR_EXTRA += -DUSE_DBUSMENU=1 --include=Gtk-3.0
 endif
-StatusNotifier-$(PACKAGE_VERSION).gir: $(INTROSPECTION_SCANNER) libstatusnotifier.la
+StatusNotifier-$(GIR_VERSION).gir: $(INTROSPECTION_SCANNER) libstatusnotifier.la
 	$(AM_V_GEN) $(INTROSPECTION_SCANNER) \
 		-v --warn-all -n StatusNotifier --nsversion=$(GIR_VERSION) \
 		--include=GObject-2.0 --include=GdkPixbuf-2.0 \
