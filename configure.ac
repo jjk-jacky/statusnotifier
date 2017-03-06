@@ -1,9 +1,39 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
+# package version
+m4_define([pkg_version], [0.1.0])
+
+# library version
+#
+# current   The most recent interface number that this library implements.
+# revision  The implementation number of the current interface.
+# age       The difference between the newest and oldest interfaces that this
+#           library implements. In other words, the library implements all the
+#           interface numbers in the range from number current - age to current
+#
+# 1. Start with version information of ‘0:0:0’ for each libtool library.
+# 2. Update the version information only immediately before a public release of
+#    your software. More frequent updates are unnecessary, and only guarantee
+#    that the current interface number gets larger faster.
+# 3. If the library source code has changed at all since the last update, then
+#    increment revision (‘c:r:a’ becomes ‘c:r+1:a’).
+# 4. If any interfaces have been added, removed, or changed since the last
+#    update, increment current, and set revision to 0.
+# 5. If any interfaces have been added since the last public release, then
+#    increment age.
+# 6. If any interfaces have been removed or changed since the last public
+#    release, then set age to 0.
+m4_define([lib_current], [0])
+m4_define([lib_revision], [0])
+m4_define([lib_age], [0])
+
+# GIR namespace version
+m4_define([gir_version], [0.0])
+
+
 AC_PREREQ([2.69])
-AC_INIT([statusnotifier], [0.1.0], [jjk@jjacky.com])
-GIR_VERSION=0.0
+AC_INIT([statusnotifier], [pkg_version], [jjk@jjacky.com])
 AC_CONFIG_SRCDIR([src/statusnotifier.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
@@ -30,6 +60,11 @@ AC_PROG_CC
 AM_PROG_AR
 
 LT_INIT
+LIB_VERSION_INFO="lib_current:lib_revision:lib_age"
+AC_SUBST(LIB_VERSION_INFO)
+
+GIR_VERSION="gir_version"
+AC_SUBST(GIR_VERSION)
 
 # Option for example
 AC_ARG_ENABLE([example],
@@ -94,7 +129,6 @@ AM_CONDITIONAL(USE_DBUSMENU, test "x$dbusmenu" = "xyes")
 # introspection
 GOBJECT_INTROSPECTION_CHECK([0.6.3])
 
-AC_SUBST(GIR_VERSION)
 AC_SUBST(DEP_PACKAGES)
 AC_SUBST(DEP_CFLAGS)
 AC_SUBST(DEP_LIBS)

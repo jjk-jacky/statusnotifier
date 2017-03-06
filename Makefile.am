@@ -26,6 +26,7 @@ include_HEADERS = src/statusnotifier.h src/statusnotifier-compat.h
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = statusnotifier.pc
 
+libstatusnotifier_la_LDFLAGS = -version-info $(LIB_VERSION_INFO)
 libstatusnotifier_la_CFLAGS = ${AM_CFLAGS} @DEP_CFLAGS@
 libstatusnotifier_la_LIBADD = @DEP_LIBS@
 libstatusnotifier_la_SOURCES = \
