@@ -90,6 +90,9 @@ else
 fi
 AM_CONDITIONAL(USE_DBUSMENU, test "x$dbusmenu" = "xyes")
 
+# introspection
+GOBJECT_INTROSPECTION_CHECK([0.6.3])
+
 AC_SUBST(DEP_PACKAGES)
 AC_SUBST(DEP_CFLAGS)
 AC_SUBST(DEP_LIBS)
@@ -179,6 +182,7 @@ echo "
    build html documentation : ${enable_gtk_doc}
    example                  : ${enable_example}
    dbusmenu                 : ${dbusmenu}
+   introspection            : ${enable_introspection}
 
  Install paths:
    binaries                 : $(eval echo $(eval echo ${bindir}))

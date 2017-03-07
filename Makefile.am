@@ -1,4 +1,6 @@
 
+CLEANFILES =
+
 SUBDIRS = . docs/reference
 if EXAMPLE
 SUBDIRS += example
@@ -38,7 +40,8 @@ libstatusnotifier_la_SOURCES = \
 EXTRA_DIST = \
 	src/closures \
 	src/closures.def \
-	src/mkenums
+	src/mkenums \
+	m4/introspection.m4
 
 src/enums.h: src/statusnotifier.h
 	$(AM_V_GEN) cd $(top_srcdir)/src && ./mkenums
@@ -46,3 +49,33 @@ src/enums.h: src/statusnotifier.h
 src/enums.c: src/statusnotifier.h
 	$(AM_V_GEN) cd $(top_srcdir)/src && ./mkenums
 
+
+if HAVE_INTROSPECTION
+BUILT_GIRSOURCES = StatusNotifier-$(PACKAGE_VERSION).gir
+
+GIR_EXTRA =
+if USE_DBUSMENU
+GIR_EXTRA += -DUSE_DBUSMENU=1 --include=Gtk-3.0
+endif
+StatusNotifier-$(PACKAGE_VERSION).gir: $(INTROSPECTION_SCANNER) libstatusnotifier.la
+	$(AM_V_GEN) $(INTROSPECTION_SCANNER) \
+		-v --warn-all -n StatusNotifier --nsversion=0.0 \
+		--identifier-prefix=Status \
+		--include=GObject-2.0 --include=GdkPixbuf-2.0 \
+		$(INCLUDES) $(GIR_EXTRA) \
+		--library=statusnotifier -o $@ \
+		src/statusnotifier.[ch] src/enums.[ch]
+
+girdir = $(datadir)/gir-1.0
+gir_DATA = $(BUILT_GIRSOURCES)
+
+typelibsdir = $(libdir)/girepository-1.0
+typelibs_DATA = $(BUILT_GIRSOURCES:.gir=.typelib)
+
+%.typelib: %.gir $(INTROSPECTION_COMPILER)
+	$(AM_V_GEN) $(INTROSPECTION_COMPILER) \
+		--includedir=$(srcdir) --includedir=. $(INTROSPECTION_COMPILER_OPTS) \
+		$< -o $(@F)
+
+CLEANFILES += $(BUILT_GIRSOURCES) $(typelibs_DATA)
+endif
