@@ -33,18 +33,18 @@
 
 G_BEGIN_DECLS
 
-typedef struct _StatusNotifier              StatusNotifier;
-typedef struct _StatusNotifierPrivate       StatusNotifierPrivate;
-typedef struct _StatusNotifierClass         StatusNotifierClass;
+typedef struct _StatusNotifierItem          StatusNotifierItem;
+typedef struct _StatusNotifierItemPrivate   StatusNotifierItemPrivate;
+typedef struct _StatusNotifierItemClass     StatusNotifierItemClass;
 
-#define TYPE_STATUS_NOTIFIER                (status_notifier_get_type ())
-#define STATUS_NOTIFIER(obj)                (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_STATUS_NOTIFIER, StatusNotifier))
-#define STATUS_NOTIFIER_CLASS(klass)        (G_TYPE_CHECK_CLASS_CAST ((klass), TYPE_STATUS_NOTIFIER, StatusNotifierClass))
-#define IS_STATUS_NOTIFIER(obj)             (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_STATUS_NOTIFIER))
-#define IS_STATUS_NOTIFIER_CLASS(klass)     (G_TYPE_CHECK_CLASS_TYPE ((obj), TYPE_STATUS_NOTIFIER))
-#define STATUS_NOTIFIER_GET_CLASS(obj)      (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_STATUS_NOTIFIER, StatusNotifierClass))
+#define STATUS_NOTIFIER_TYPE_ITEM           (status_notifier_item_get_type ())
+#define STATUS_NOTIFIER_ITEM(obj)           (G_TYPE_CHECK_INSTANCE_CAST ((obj), STATUS_NOTIFIER_TYPE_ITEM, StatusNotifierItem))
+#define STATUS_NOTIFIER_ITEM_CLASS(klass)   (G_TYPE_CHECK_CLASS_CAST ((klass), STATUS_NOTIFIER_TYPE_ITEM, StatusNotifierItemClass))
+#define STATUS_NOTIFIER_IS_ITEM(obj)        (G_TYPE_CHECK_INSTANCE_TYPE ((obj), STATUS_NOTIFIER_TYPE_ITEM))
+#define STATUS_NOTIFIER_IS_ITEM_CLASS(klass)(G_TYPE_CHECK_CLASS_TYPE ((obj), STATUS_NOTIFIER_TYPE_ITEM))
+#define STATUS_NOTIFIER_ITEM_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), STATUS_NOTIFIER_TYPE_ITEM, StatusNotifierItemClass))
 
-GType               status_notifier_get_type            (void) G_GNUC_CONST;
+GType                   status_notifier_item_get_type               (void) G_GNUC_CONST;
 
 #define STATUS_NOTIFIER_ERROR               g_quark_from_static_string ("StatusNotifier error")
 /**
@@ -72,9 +72,9 @@ typedef enum
 /**
  * StatusNotifierState:
  * @STATUS_NOTIFIER_STATE_NOT_REGISTERED: Item hasn't yet been asked to
- * register, i.e. no call to status_notifier_register() have been made yet
+ * register, i.e. no call to status_notifier_item_register() have been made yet
  * @STATUS_NOTIFIER_STATE_REGISTERING: Item is in the process of registering.
- * This state is also valid after #StatusNotifier::registration-failed was
+ * This state is also valid after #StatusNotifierItem::registration-failed was
  * emitted, if the item is waiting for possible "recovery" (e.g. if no host was
  * registered on watcher, waiting for one to do so)
  * @STATUS_NOTIFIER_STATE_REGISTERED: Item was sucessfully registered on DBus
@@ -82,8 +82,8 @@ typedef enum
  * @STATUS_NOTIFIER_STATE_FAILED: Registration failed, with no possible pending
  * recovery
  *
- * State in which a #StatusNotifier item can be. See status_notifier_register()
- * for more
+ * State in which a #StatusNotifierItem can be. See
+ * status_notifier_item_register() for more
  */
 typedef enum
 {
@@ -181,15 +181,15 @@ typedef enum
     STATUS_NOTIFIER_SCROLL_ORIENTATION_VERTICAL
 } StatusNotifierScrollOrientation;
 
-struct _StatusNotifier
+struct _StatusNotifierItem
 {
     /*< private >*/
     GObject parent;
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 };
 
 /**
- * StatusNotifierClass:
+ * StatusNotifierItemClass:
  * @parent_class: Parent class
  * @registration_failed: When registering the item failed, e.g. because there's
  * no StatusNotifierHost registered (yet); If this occurs, you should fallback
@@ -207,111 +207,111 @@ struct _StatusNotifier
  * @scroll: The user asked for a scroll action. This is caused from input such
  * as mouse wheel over the graphical representation of the item.
  */
-struct _StatusNotifierClass
+struct _StatusNotifierItemClass
 {
     GObjectClass parent_class;
 
     /* signals */
-    void            (*registration_failed)  (StatusNotifier         *sn,
+    void            (*registration_failed)  (StatusNotifierItem     *sn,
                                              GError                 *error);
 
-    gboolean        (*context_menu)         (StatusNotifier         *sn,
+    gboolean        (*context_menu)         (StatusNotifierItem     *sn,
                                              gint                    x,
                                              gint                    y);
-    gboolean        (*activate)             (StatusNotifier         *sn,
+    gboolean        (*activate)             (StatusNotifierItem     *sn,
                                              gint                    x,
                                              gint                    y);
-    gboolean        (*secondary_activate)   (StatusNotifier         *sn,
+    gboolean        (*secondary_activate)   (StatusNotifierItem     *sn,
                                              gint                    x,
                                              gint                    y);
-    gboolean        (*scroll)               (StatusNotifier         *sn,
+    gboolean        (*scroll)               (StatusNotifierItem     *sn,
                                              gint                    delta,
                                              StatusNotifierScrollOrientation orientation);
 };
 
-StatusNotifier *        status_notifier_new_from_pixbuf (
+StatusNotifierItem *    status_notifier_item_new_from_pixbuf (
                                             const gchar             *id,
                                             StatusNotifierCategory   category,
                                             GdkPixbuf               *pixbuf);
-StatusNotifier *        status_notifier_new_from_icon_name (
+StatusNotifierItem *    status_notifier_item_new_from_icon_name (
                                             const gchar             *id,
                                             StatusNotifierCategory   category,
                                             const gchar             *icon_name);
-const gchar *           status_notifier_get_id (
-                                            StatusNotifier          *sn);
-StatusNotifierCategory  status_notifier_get_category (
-                                            StatusNotifier          *sn);
-void                    status_notifier_set_from_pixbuf (
-                                            StatusNotifier          *sn,
+const gchar *           status_notifier_item_get_id (
+                                            StatusNotifierItem      *sn);
+StatusNotifierCategory  status_notifier_item_get_category (
+                                            StatusNotifierItem      *sn);
+void                    status_notifier_item_set_from_pixbuf (
+                                            StatusNotifierItem      *sn,
                                             StatusNotifierIcon       icon,
                                             GdkPixbuf               *pixbuf);
-void                    status_notifier_set_from_icon_name (
-                                            StatusNotifier          *sn,
+void                    status_notifier_item_set_from_icon_name (
+                                            StatusNotifierItem      *sn,
                                             StatusNotifierIcon       icon,
                                             const gchar             *icon_name);
-gboolean                status_notifier_has_pixbuf (
-                                            StatusNotifier          *sn,
+gboolean                status_notifier_item_has_pixbuf (
+                                            StatusNotifierItem      *sn,
                                             StatusNotifierIcon       icon);
-GdkPixbuf *             status_notifier_get_pixbuf (
-                                            StatusNotifier          *sn,
+GdkPixbuf *             status_notifier_item_get_pixbuf (
+                                            StatusNotifierItem      *sn,
                                             StatusNotifierIcon       icon);
-gchar *                 status_notifier_get_icon_name (
-                                            StatusNotifier          *sn,
+gchar *                 status_notifier_item_get_icon_name (
+                                            StatusNotifierItem      *sn,
                                             StatusNotifierIcon       icon);
-void                    status_notifier_set_attention_movie_name (
-                                            StatusNotifier          *sn,
+void                    status_notifier_item_set_attention_movie_name (
+                                            StatusNotifierItem      *sn,
                                             const gchar             *movie_name);
-gchar *                 status_notifier_get_attention_movie_name (
-                                            StatusNotifier          *sn);
-void                    status_notifier_set_title (
-                                            StatusNotifier          *sn,
+gchar *                 status_notifier_item_get_attention_movie_name (
+                                            StatusNotifierItem      *sn);
+void                    status_notifier_item_set_title (
+                                            StatusNotifierItem      *sn,
                                             const gchar             *title);
-gchar *                 status_notifier_get_title (
-                                            StatusNotifier          *sn);
-void                    status_notifier_set_status (
-                                            StatusNotifier          *sn,
+gchar *                 status_notifier_item_get_title (
+                                            StatusNotifierItem      *sn);
+void                    status_notifier_item_set_status (
+                                            StatusNotifierItem      *sn,
                                             StatusNotifierStatus     status);
-StatusNotifierStatus    status_notifier_get_status (
-                                            StatusNotifier          *sn);
-void                    status_notifier_set_window_id (
-                                            StatusNotifier          *sn,
+StatusNotifierStatus    status_notifier_item_get_status (
+                                            StatusNotifierItem      *sn);
+void                    status_notifier_item_set_window_id (
+                                            StatusNotifierItem      *sn,
                                             guint32                  window_id);
-guint32                 status_notifier_get_window_id (
-                                            StatusNotifier          *sn);
-void                    status_notifier_freeze_tooltip (
-                                            StatusNotifier          *sn);
-void                    status_notifier_thaw_tooltip (
-                                            StatusNotifier          *sn);
-void                    status_notifier_set_tooltip (
-                                            StatusNotifier          *sn,
+guint32                 status_notifier_item_get_window_id (
+                                            StatusNotifierItem      *sn);
+void                    status_notifier_item_freeze_tooltip (
+                                            StatusNotifierItem      *sn);
+void                    status_notifier_item_thaw_tooltip (
+                                            StatusNotifierItem      *sn);
+void                    status_notifier_item_set_tooltip (
+                                            StatusNotifierItem      *sn,
                                             const gchar             *icon_name,
                                             const gchar             *title,
                                             const gchar             *body);
-void                    status_notifier_set_tooltip_title (
-                                            StatusNotifier          *sn,
+void                    status_notifier_item_set_tooltip_title (
+                                            StatusNotifierItem      *sn,
                                             const gchar             *title);
-gchar *                 status_notifier_get_tooltip_title (
-                                            StatusNotifier          *sn);
-void                    status_notifier_set_tooltip_body (
-                                            StatusNotifier          *sn,
+gchar *                 status_notifier_item_get_tooltip_title (
+                                            StatusNotifierItem      *sn);
+void                    status_notifier_item_set_tooltip_body (
+                                            StatusNotifierItem      *sn,
                                             const gchar             *body);
-gchar *                 status_notifier_get_tooltip_body (
-                                            StatusNotifier          *sn);
-void                    status_notifier_register (
-                                            StatusNotifier          *sn);
-StatusNotifierState     status_notifier_get_state (
-                                            StatusNotifier          *sn);
-void                    status_notifier_set_item_is_menu (
-                                            StatusNotifier          *sn,
+gchar *                 status_notifier_item_get_tooltip_body (
+                                            StatusNotifierItem      *sn);
+void                    status_notifier_item_register (
+                                            StatusNotifierItem      *sn);
+StatusNotifierState     status_notifier_item_get_state (
+                                            StatusNotifierItem      *sn);
+void                    status_notifier_item_set_item_is_menu (
+                                            StatusNotifierItem      *sn,
                                             gboolean                 is_menu);
-gboolean                status_notifier_get_item_is_menu (
-                                            StatusNotifier          *sn);
+gboolean                status_notifier_item_get_item_is_menu (
+                                            StatusNotifierItem      *sn);
 #ifdef USE_DBUSMENU
-void                    status_notifier_set_context_menu (
-                                            StatusNotifier          *sn,
+void                    status_notifier_item_set_context_menu (
+                                            StatusNotifierItem      *sn,
                                             GtkWidget               *menu);
-GtkWidget *             status_notifier_get_context_menu (
-                                            StatusNotifier          *sn);
+GtkWidget *             status_notifier_item_get_context_menu (
+                                            StatusNotifierItem      *sn);
 #endif
 
 G_END_DECLS

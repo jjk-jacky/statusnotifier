@@ -21,7 +21,7 @@ AM_CFLAGS = \
 	${WARNING_CFLAGS}
 
 lib_LTLIBRARIES = libstatusnotifier.la
-include_HEADERS = src/statusnotifier.h
+include_HEADERS = src/statusnotifier.h src/statusnotifier-compat.h
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = statusnotifier.pc
@@ -60,7 +60,6 @@ endif
 StatusNotifier-$(PACKAGE_VERSION).gir: $(INTROSPECTION_SCANNER) libstatusnotifier.la
 	$(AM_V_GEN) $(INTROSPECTION_SCANNER) \
 		-v --warn-all -n StatusNotifier --nsversion=0.0 \
-		--identifier-prefix=Status \
 		--include=GObject-2.0 --include=GdkPixbuf-2.0 \
 		$(INCLUDES) $(GIR_EXTRA) \
 		--library=statusnotifier -o $@ \

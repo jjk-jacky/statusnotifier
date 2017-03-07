@@ -58,9 +58,9 @@ struct config
 };
 
 static void
-set_status (GObject *item, StatusNotifier *sn)
+set_status (GObject *item, StatusNotifierItem *sn)
 {
-    status_notifier_set_status (sn, GPOINTER_TO_UINT (g_object_get_data (item, "sn-status")));
+    status_notifier_item_set_status (sn, GPOINTER_TO_UINT (g_object_get_data (item, "sn-status")));
 }
 
 static void
@@ -70,7 +70,7 @@ set_status_activation_trigger (gpointer item, gpointer sn)
 }
 
 static GtkMenu *
-create_menu (StatusNotifier *sn, GMainLoop *loop)
+create_menu (StatusNotifierItem *sn, GMainLoop *loop)
 {
     GtkMenu *menu;
     GtkMenu *submenu;
@@ -132,7 +132,7 @@ create_menu (StatusNotifier *sn, GMainLoop *loop)
 }
 
 static gboolean
-sn_menu (StatusNotifier *sn, gint x, gint y, GMainLoop *loop)
+sn_menu (StatusNotifierItem *sn, gint x, gint y, GMainLoop *loop)
 {
     static GtkMenu *menu = NULL;
     if (!menu)
@@ -153,7 +153,7 @@ sn_activate (GMainLoop *loop)
 }
 
 static void
-sn_reg_failed (StatusNotifier *sn, GError *error, GMainLoop *loop)
+sn_reg_failed (StatusNotifierItem *sn, GError *error, GMainLoop *loop)
 {
     fprintf (stderr, "Failed to create status notifier: %s\n", error->message);
     g_main_loop_quit (loop);
@@ -333,7 +333,7 @@ main (gint argc, gchar *argv[])
 {
     GError *err = NULL;
     GMainLoop *loop;
-    StatusNotifier *sn;
+    StatusNotifierItem *sn;
     struct config cfg = { 0, };
     const gchar *prop_name_from_icon[_NB_STATUS_NOTIFIER_ICONS] = {
         "main-icon-name",
@@ -359,7 +359,7 @@ main (gint argc, gchar *argv[])
     }
 
     loop = g_main_loop_new (NULL, TRUE);
-    sn = g_object_new (TYPE_STATUS_NOTIFIER,
+    sn = g_object_new (STATUS_NOTIFIER_TYPE_ITEM,
             "id",               "sn-example",
             "category",         cfg.category,
             "status",           cfg.status,
@@ -374,20 +374,20 @@ main (gint argc, gchar *argv[])
             g_object_set (sn, prop_name_from_icon[i], cfg.icon[i].icon_name, NULL);
     }
     if (cfg.tooltip_title)
-        status_notifier_set_tooltip_title (sn, cfg.tooltip_title);
+        status_notifier_item_set_tooltip_title (sn, cfg.tooltip_title);
     if (cfg.tooltip_body)
-        status_notifier_set_tooltip_body (sn, cfg.tooltip_body);
+        status_notifier_item_set_tooltip_body (sn, cfg.tooltip_body);
 
 #ifdef USE_DBUSMENU
     if (cfg.menu)
-        status_notifier_set_context_menu (sn, (GtkWidget *) create_menu(sn, loop));
+        status_notifier_item_set_context_menu (sn, (GtkWidget *) create_menu(sn, loop));
     else
 #endif
         g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
 
     g_signal_connect (sn, "registration-failed", (GCallback) sn_reg_failed, loop);
     g_signal_connect_swapped (sn, "activate", (GCallback) sn_activate, loop);
-    status_notifier_register (sn);
+    status_notifier_item_register (sn);
     g_main_loop_run (loop);
 
     g_object_unref (sn);

@@ -9,10 +9,10 @@ StatusNotifierItem, handling all the DBus interface and letting you simply deal
 with the object's properties and signals.
 
 You can simply create a new StatusNotifier using one of the helper function,
-e.g. `status_notifier_new_from_icon_name()`, or simply creating an object as
-usual - you then just need to make sure to specify property `id` :
+e.g. `status_notifier_item_new_from_icon_name()`, or simply creating an object
+as usual - you then just need to make sure to specify property `id` :
 
-	sn = (StatusNotifier *) g_object_new (TYPE_STATUS_NOTIFIER,
+	sn = (StatusNotifier *) g_object_new (STATUS_NOTIFIER_TYPE_ITEM,
 	     "id",                       "app-id",
 	     "status",                   STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION,
 	     "main-icon-name",           "app-icon",
@@ -22,8 +22,8 @@ usual - you then just need to make sure to specify property `id` :
 	     NULL);
 
 You can also set properties (other than `id`) after creation. Once ready, call
-`status_notifier_register()` to register the item on the session bus and to the
-StatusNotifierWatcher.
+`status_notifier_item_register()` to register the item on the session bus and to
+the StatusNotifierWatcher.
 
 If an error occurs, signal `registration-failed` will be emitted. On success,
 property `state` will be `STATUS_NOTIFIER_STATE_REGISTERED`.

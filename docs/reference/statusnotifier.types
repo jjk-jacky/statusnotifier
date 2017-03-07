@@ -1,4 +1,4 @@
-status_notifier_get_type
+status_notifier_item_get_type
 status_notifier_category_get_type
 status_notifier_error_get_type
 status_notifier_icon_get_type

@@ -42,15 +42,16 @@
  * Starting with Plasma Next, KDE doesn't support the XEmbed systray in favor of
  * their own Status Notifier Specification.
  *
- * A #StatusNotifier is a #GObject that can be used to represent a
+ * A #StatusNotifierItem is a #GObject that can be used to represent a
  * StatusNotifierItem, handling all the DBus implementation and leaving you
  * simply dealing with regular properties and signals.
  *
- * You can simply create a new #StatusNotifier using one of the helper function,
- * e.g. status_notifier_new_from_icon_name(), or simply creating an object as
- * usual - you then just need to make sure to specify #StatusNotifier:id :
+ * You can simply create a new #StatusNotifierItem using one of the helper
+ * function, e.g. status_notifier_item_new_from_icon_name(), or simply creating
+ * an object as usual - you then just need to make sure to specify
+ * #StatusNotifierItem:id :
  * <programlisting>
- * sn = (StatusNotifier *) g_object_new (TYPE_STATUS_NOTIFIER,
+ * sn = (StatusNotifierItem *) g_object_new (STATUS_NOTIFIER_TYPE_ITEM,
  *      "id",                       "app-id",
  *      "status",                   STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION,
  *      "main-icon-name",           "app-icon",
@@ -61,17 +62,18 @@
  * </programlisting>
  *
  * You can also set properties (other than id) after creation. Once ready, call
- * status_notifier_register() to register the item on the session bus and to the
- * StatusNotifierWatcher.
+ * status_notifier_item_register() to register the item on the session bus and
+ * to the StatusNotifierWatcher.
  *
- * If an error occurs, signal #StatusNotifier::registration-failed will be
- * emitted. On success, #StatusNotifier:state will be
- * %STATUS_NOTIFIER_STATE_REGISTERED. See status_notifier_register() for more.
+ * If an error occurs, signal #StatusNotifierItem::registration-failed will be
+ * emitted. On success, #StatusNotifierItem:state will be
+ * %STATUS_NOTIFIER_STATE_REGISTERED. See status_notifier_item_register() for
+ * more.
  *
  * Once registered, you can change properties as needed, and the proper DBus
  * signal will be emitted to let visualizations (hosts) know, and connect to the
- * signals (such as #StatusNotifier::context-menu) which will be emitted when
- * the corresponding DBus method was called.
+ * signals (such as #StatusNotifierItem::context-menu) which will be emitted
+ * when the corresponding DBus method was called.
  *
  * For reference, the specifications can be found at
  * https://freedesktop.org/wiki/Specifications/StatusNotifierItem/
@@ -135,7 +137,7 @@ enum
     NB_SIGNALS
 };
 
-struct _StatusNotifierPrivate
+struct _StatusNotifierItemPrivate
 {
     gchar *id;
     StatusNotifierCategory category;
@@ -172,194 +174,194 @@ struct _StatusNotifierPrivate
 
 static guint uniq_id = 0;
 
-static GParamSpec *status_notifier_props[NB_PROPS] = { NULL, };
-static guint status_notifier_signals[NB_SIGNALS] = { 0, };
+static GParamSpec *status_notifier_item_props[NB_PROPS] = { NULL, };
+static guint status_notifier_item_signals[NB_SIGNALS] = { 0, };
 
 #define notify(sn,prop) \
-    g_object_notify_by_pspec ((GObject *) sn, status_notifier_props[prop])
+    g_object_notify_by_pspec ((GObject *) sn, status_notifier_item_props[prop])
 
-static void     status_notifier_set_property    (GObject            *object,
-                                                 guint               prop_id,
-                                                 const GValue       *value,
-                                                 GParamSpec         *pspec);
-static void     status_notifier_get_property    (GObject            *object,
-                                                 guint               prop_id,
-                                                 GValue             *value,
-                                                 GParamSpec         *pspec);
-static void     status_notifier_finalize        (GObject            *object);
+static void     status_notifier_item_set_property   (GObject            *object,
+                                                     guint               prop_id,
+                                                     const GValue       *value,
+                                                     GParamSpec         *pspec);
+static void     status_notifier_item_get_property   (GObject            *object,
+                                                     guint               prop_id,
+                                                     GValue             *value,
+                                                     GParamSpec         *pspec);
+static void     status_notifier_item_finalize       (GObject            *object);
 
-G_DEFINE_TYPE (StatusNotifier, status_notifier, G_TYPE_OBJECT)
+G_DEFINE_TYPE (StatusNotifierItem, status_notifier_item, G_TYPE_OBJECT)
 
 static void
-status_notifier_class_init (StatusNotifierClass *klass)
+status_notifier_item_class_init (StatusNotifierItemClass *klass)
 {
     GObjectClass *o_class;
 
     o_class = G_OBJECT_CLASS (klass);
-    o_class->set_property   = status_notifier_set_property;
-    o_class->get_property   = status_notifier_get_property;
-    o_class->finalize       = status_notifier_finalize;
+    o_class->set_property   = status_notifier_item_set_property;
+    o_class->get_property   = status_notifier_item_get_property;
+    o_class->finalize       = status_notifier_item_finalize;
 
     /**
-     * StatusNotifier:id:
+     * StatusNotifierItem:id:
      *
      * It's a name that should be unique for this application and consistent
      * between sessions, such as the application name itself.
      */
-    status_notifier_props[PROP_ID] =
+    status_notifier_item_props[PROP_ID] =
         g_param_spec_string ("id", "id", "Unique application identifier",
                 NULL,
                 G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
 
     /**
-     * StatusNotifier:title:
+     * StatusNotifierItem:title:
      *
      * It's a name that describes the application, it can be more descriptive
-     * than #StatusNotifier:id.
+     * than #StatusNotifierItem:id.
      */
-    status_notifier_props[PROP_TITLE] =
+    status_notifier_item_props[PROP_TITLE] =
         g_param_spec_string ("title", "title", "Descriptive name for the item",
                 NULL,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:category:
+     * StatusNotifierItem:category:
      *
      * Describes the category of this item.
      */
-    status_notifier_props[PROP_CATEGORY] =
+    status_notifier_item_props[PROP_CATEGORY] =
         g_param_spec_enum ("category", "category", "Category of the item",
                 TYPE_STATUS_NOTIFIER_CATEGORY,
                 STATUS_NOTIFIER_CATEGORY_APPLICATION_STATUS,
                 G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
 
     /**
-     * StatusNotifier:status:
+     * StatusNotifierItem:status:
      *
      * Describes the status of this item or of the associated application.
      */
-    status_notifier_props[PROP_STATUS] =
+    status_notifier_item_props[PROP_STATUS] =
         g_param_spec_enum ("status", "status", "Status of the item",
                 TYPE_STATUS_NOTIFIER_STATUS,
                 STATUS_NOTIFIER_STATUS_PASSIVE,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:main-icon-name:
+     * StatusNotifierItem:main-icon-name:
      *
      * The item can carry an icon that can be used by the visualization to
      * identify the item.
      *
      * An icon can either be identified by its Freedesktop-compliant icon name,
      * set by this property, or by the icon data itself, set by the property
-     * #StatusNotifier:main-icon-pixbuf.
+     * #StatusNotifierItem:main-icon-pixbuf.
      *
      * It is currently not possible to set both, as setting one will unset the
      * other.
      */
-    status_notifier_props[PROP_MAIN_ICON_NAME] =
+    status_notifier_item_props[PROP_MAIN_ICON_NAME] =
         g_param_spec_string ("main-icon-name", "main-icon-name",
                 "Icon name for the main icon",
                 NULL,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:main-icon-pixbuf:
+     * StatusNotifierItem:main-icon-pixbuf:
      *
      * The item can carry an icon that can be used by the visualization to
      * identify the item.
      *
      * An icon can either be identified by its Freedesktop-compliant icon name,
-     * set by property #StatusNotifier:main-icon-name, or by the icon data
+     * set by property #StatusNotifierItem:main-icon-name, or by the icon data
      * itself, set by this property.
      *
      * It is currently not possible to set both, as setting one will unset the
      * other.
      */
-    status_notifier_props[PROP_MAIN_ICON_PIXBUF] =
+    status_notifier_item_props[PROP_MAIN_ICON_PIXBUF] =
         g_param_spec_object ("main-icon-pixbuf", "main-icon-pixbuf",
                 "Pixbuf for the main icon",
                 GDK_TYPE_PIXBUF,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:overlay-icon-name:
+     * StatusNotifierItem:overlay-icon-name:
      *
      * This can be used by the visualization to indicate extra state
      * information, for instance as an overlay for the main icon.
      *
      * An icon can either be identified by its Freedesktop-compliant icon name,
      * set by this property, or by the icon data itself, set by property
-     * #StatusNotifier:overlay-icon-pixbuf.
+     * #StatusNotifierItem:overlay-icon-pixbuf.
      *
      * It is currently not possible to set both, as setting one will unset the
      * other.
      */
-    status_notifier_props[PROP_OVERLAY_ICON_NAME] =
+    status_notifier_item_props[PROP_OVERLAY_ICON_NAME] =
         g_param_spec_string ("overlay-icon-name", "overlay-icon-name",
                 "Icon name for the overlay icon",
                 NULL,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:overlay-icon-pixbuf:
+     * StatusNotifierItem:overlay-icon-pixbuf:
      *
      * This can be used by the visualization to indicate extra state
      * information, for instance as an overlay for the main icon.
      *
      * An icon can either be identified by its Freedesktop-compliant icon name,
-     * set by property #StatusNotifier:overlay-icon-name, or by the icon data
-     * itself, set by this property.
+     * set by property #StatusNotifierItem:overlay-icon-name, or by the icon
+     * data itself, set by this property.
      *
      * It is currently not possible to set both, as setting one will unset the
      * other.
      */
-    status_notifier_props[PROP_OVERLAY_ICON_PIXBUF] =
+    status_notifier_item_props[PROP_OVERLAY_ICON_PIXBUF] =
         g_param_spec_object ("overlay-icon-pixbuf", "overlay-icon-pixbuf",
                 "Pixbuf for the overlay icon",
                 GDK_TYPE_PIXBUF,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:attention-icon-name:
+     * StatusNotifierItem:attention-icon-name:
      *
      * This can be used by the visualization to indicate that the item is in
      * %STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION status.
      *
      * An icon can either be identified by its Freedesktop-compliant icon name,
      * set by this property, or by the icon data itself, set by property
-     * #StatusNotifier:attention-icon-pixbuf.
+     * #StatusNotifierItem:attention-icon-pixbuf.
      *
      * It is currently not possible to set both, as setting one will unset the
      * other.
      */
-    status_notifier_props[PROP_ATTENTION_ICON_NAME] =
+    status_notifier_item_props[PROP_ATTENTION_ICON_NAME] =
         g_param_spec_string ("attention-icon-name", "attention-icon-name",
                 "Icon name for the attention icon",
                 NULL,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:attention-icon-pixbuf:
+     * StatusNotifierItem:attention-icon-pixbuf:
      *
      * This can be used by the visualization to indicate that the item is in
      * %STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION status.
      *
      * An icon can either be identified by its Freedesktop-compliant icon name,
-     * set by property #StatusNotifier:attention-icon-name, or by the icon data
-     * itself, set by this property.
+     * set by property #StatusNotifierItem:attention-icon-name, or by the icon
+     * data itself, set by this property.
      *
      * It is currently not possible to set both, as setting one will unset the
      * other.
      */
-    status_notifier_props[PROP_ATTENTION_ICON_PIXBUF] =
+    status_notifier_item_props[PROP_ATTENTION_ICON_PIXBUF] =
         g_param_spec_object ("attention-icon-pixbuf", "attention-icon-pixbuf",
                 "Pixbuf for the attention icon",
                 GDK_TYPE_PIXBUF,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:attention-movie-name:
+     * StatusNotifierItem:attention-movie-name:
      *
      * In addition to the icon, the item can also specify an animation
      * associated to the #STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION status.
@@ -368,94 +370,94 @@ status_notifier_class_init (StatusNotifierClass *klass)
      * The visualization can chose between the movie or icon (or using neither
      * of those) at its discretion.
      */
-    status_notifier_props[PROP_ATTENTION_MOVIE_NAME] =
+    status_notifier_item_props[PROP_ATTENTION_MOVIE_NAME] =
         g_param_spec_string ("attention-movie-name", "attention-movie-name",
                 "Animation name/full path when the item is in needs-attention status",
                 NULL,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:tooltip-icon-name:
+     * StatusNotifierItem:tooltip-icon-name:
      *
      * A tooltip can be defined on the item; It can be used by the visualization
      * to show as a tooltip (or by any other mean it considers appropriate).
      *
      * The tooltip is composed of a title, a body, and an icon. Note that
      * changing any of these will trigger a DBus signal NewToolTip (for hosts to
-     * refresh DBus property ToolTip), see status_notifier_freeze_tooltip() for
-     * changing more than one and only emitting one DBus signal at the end.
+     * refresh DBus property ToolTip), see status_notifier_item_freeze_tooltip()
+     * for changing more than one and only emitting one DBus signal at the end.
      *
      * The icon can either be identified by its Freedesktop-compliant icon name,
      * set by this property, or by the icon data itself, set by property
-     * #StatusNotifier:tooltip-icon-pixbuf.
+     * #StatusNotifierItem:tooltip-icon-pixbuf.
      *
      * It is currently not possible to set both, as setting one will unset the
      * other.
      */
-    status_notifier_props[PROP_TOOLTIP_ICON_NAME] =
+    status_notifier_item_props[PROP_TOOLTIP_ICON_NAME] =
         g_param_spec_string ("tooltip-icon-name", "tooltip-icon-name",
                 "Icon name for the tooltip icon",
                 NULL,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:tooltip-icon-pixbuf:
+     * StatusNotifierItem:tooltip-icon-pixbuf:
      *
      * A tooltip can be defined on the item; It can be used by the visualization
      * to show as a tooltip (or by any other mean it considers appropriate).
      *
      * The tooltip is composed of a title, a body, and an icon. Note that
      * changing any of these will trigger a DBus signal NewToolTip (for hosts to
-     * refresh DBus property ToolTip), see status_notifier_freeze_tooltip() for
-     * changing more than one and only emitting one DBus signal at the end.
+     * refresh DBus property ToolTip), see status_notifier_item_freeze_tooltip()
+     * for changing more than one and only emitting one DBus signal at the end.
      *
      * The icon can either be identified by its Freedesktop-compliant icon name,
-     * set by property #StatusNotifier:tooltip-icon-name, or by the icon data
-     * itself, set by this property.
+     * set by property #StatusNotifierItem:tooltip-icon-name, or by the icon
+     * data itself, set by this property.
      *
      * It is currently not possible to set both, as setting one will unset the
      * other.
      */
-    status_notifier_props[PROP_TOOLTIP_ICON_PIXBUF] =
+    status_notifier_item_props[PROP_TOOLTIP_ICON_PIXBUF] =
         g_param_spec_object ("tooltip-icon-pixbuf", "tooltip-icon-pixbuf",
                 "Pixbuf for the tooltip icon",
                 GDK_TYPE_PIXBUF,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:tooltip-title:
+     * StatusNotifierItem:tooltip-title:
      *
      * A tooltip can be defined on the item; It can be used by the visualization
      * to show as a tooltip (or by any other mean it considers appropriate).
      *
      * The tooltip is composed of a title, a body, and an icon. Note that
      * changing any of these will trigger a DBus signal NewToolTip (for hosts to
-     * refresh DBus property ToolTip), see status_notifier_freeze_tooltip() for
-     * changing more than one and only emitting one DBus signal at the end.
+     * refresh DBus property ToolTip), see status_notifier_item_freeze_tooltip()
+     * for changing more than one and only emitting one DBus signal at the end.
      */
-    status_notifier_props[PROP_TOOLTIP_TITLE] =
+    status_notifier_item_props[PROP_TOOLTIP_TITLE] =
         g_param_spec_string ("tooltip-title", "tooltip-title",
                 "Title of the tooltip",
                 NULL,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:tooltip-body:
+     * StatusNotifierItem:tooltip-body:
      *
      * A tooltip can be defined on the item; It can be used by the visualization
      * to show as a tooltip (or by any other mean it considers appropriate).
      *
      * The tooltip is composed of a title, a body, and an icon. Note that
      * changing any of these will trigger a DBus signal NewToolTip (for hosts to
-     * refresh DBus property ToolTip), see status_notifier_freeze_tooltip() for
-     * changing more than one and only emitting one DBus signal at the end.
+     * refresh DBus property ToolTip), see status_notifier_item_freeze_tooltip()
+     * for changing more than one and only emitting one DBus signal at the end.
      *
      * This body can contain some markup, which consists of a small subset of
      * XHTML. See
      * https://freedesktop.org/wiki/Specifications/StatusNotifierItem/Markup/
      * for more.
      */
-    status_notifier_props[PROP_TOOLTIP_BODY] =
+    status_notifier_item_props[PROP_TOOLTIP_BODY] =
         g_param_spec_string ("tooltip-body", "tooltip-body",
                 "Body of the tooltip",
                 NULL,
@@ -463,12 +465,12 @@ status_notifier_class_init (StatusNotifierClass *klass)
 
 
     /**
-     * StatusNotifier:item-is-menu:
+     * StatusNotifierItem:item-is-menu:
      *
-     * Whether or not this #StatusNotifier only supports a context menu or
-     * not. See status_notifier_set_item_is_menu() for more.
+     * Whether or not this #StatusNotifierItem only supports a context menu or
+     * not. See status_notifier_item_set_item_is_menu() for more.
      */
-    status_notifier_props[PROP_ITEM_IS_MENU] =
+    status_notifier_item_props[PROP_ITEM_IS_MENU] =
         g_param_spec_boolean ("item-is-menu", "item-is-menu",
                 "Whether or not the item only supports context menu",
                 FALSE,
@@ -476,14 +478,14 @@ status_notifier_class_init (StatusNotifierClass *klass)
 
 #ifdef USE_DBUSMENU
      /**
-     * StatusNotifier:menu:
+     * StatusNotifierItem:menu:
      *
      * A #GtkMenu can be exposed via DBusMenu protocol to have native Look&Feel.
      * When menu is exposed, no "context-menu" signals will be received.
      *
      * Only available if dbusmenu support was enabled in compile-time.
      */
-    status_notifier_props[PROP_MENU] =
+    status_notifier_item_props[PROP_MENU] =
         g_param_spec_object ("menu", "menu",
                 "Context menu to be exposed via dbus",
                 GTK_TYPE_WIDGET,
@@ -491,57 +493,57 @@ status_notifier_class_init (StatusNotifierClass *klass)
 #endif
 
     /**
-     * StatusNotifier:window-id:
+     * StatusNotifierItem:window-id:
      *
      * It's the windowing-system dependent identifier for a window, the
      * application can chose one of its windows to be available trough this
      * property or just set 0 if it's not interested.
      */
-    status_notifier_props[PROP_WINDOW_ID] =
+    status_notifier_item_props[PROP_WINDOW_ID] =
         g_param_spec_uint ("window-id", "window-id", "Window ID",
                 0, G_MAXUINT32,
                 0,
                 G_PARAM_READWRITE);
 
     /**
-     * StatusNotifier:state:
+     * StatusNotifierItem:state:
      *
      * The state of the item, regarding its DBus registration on the
      * StatusNotifierWatcher. After you've created the item, you need to call
-     * status_notifier_register() to have it registered via DBus on the watcher.
+     * status_notifier_item_register() to have it registered via DBus on the watcher.
      *
-     * See status_notifier_register() for more.
+     * See status_notifier_item_register() for more.
      */
-    status_notifier_props[PROP_STATE] =
+    status_notifier_item_props[PROP_STATE] =
         g_param_spec_enum ("state", "state",
                 "DBus registration state of the item",
                 TYPE_STATUS_NOTIFIER_STATE,
                 STATUS_NOTIFIER_STATE_NOT_REGISTERED,
                 G_PARAM_READABLE);
 
-    g_object_class_install_properties (o_class, NB_PROPS, status_notifier_props);
+    g_object_class_install_properties (o_class, NB_PROPS, status_notifier_item_props);
 
     /**
-     * StatusNotifier::registration-failed:
-     * @sn: The #StatusNotifier
+     * StatusNotifierItem::registration-failed:
+     * @sn: The #StatusNotifierItem
      * @error: A #GError with the reason of failure
      *
-     * This signal is emited after a call to status_notifier_register() when
-     * registering the item eventually failed (e.g. if there wasn't (yet) any
-     * StatusNotifierHost registered.)
+     * This signal is emited after a call to status_notifier_item_register()
+     * when registering the item eventually failed (e.g. if there wasn't (yet)
+     * any StatusNotifierHost registered.)
      *
      * When this happens, you should fallback to using the systray. You should
-     * also check #StatusNotifier:state as it might still be
+     * also check #StatusNotifierItem:state as it might still be
      * %STATUS_NOTIFIER_STATE_REGISTERING if the registration remains eventually
      * possible (e.g. waiting for a StatusNotifierHost to register)
      *
-     * See status_notifier_register() for more.
+     * See status_notifier_item_register() for more.
      */
-    status_notifier_signals[SIGNAL_REGISTRATION_FAILED] = g_signal_new (
+    status_notifier_item_signals[SIGNAL_REGISTRATION_FAILED] = g_signal_new (
             "registration-failed",
-            TYPE_STATUS_NOTIFIER,
+            STATUS_NOTIFIER_TYPE_ITEM,
             G_SIGNAL_RUN_LAST,
-            G_STRUCT_OFFSET (StatusNotifierClass, registration_failed),
+            G_STRUCT_OFFSET (StatusNotifierItemClass, registration_failed),
             NULL,
             NULL,
             g_cclosure_marshal_VOID__BOXED,
@@ -550,8 +552,8 @@ status_notifier_class_init (StatusNotifierClass *klass)
             G_TYPE_ERROR);
 
     /**
-     * StatusNotifier::context-menu:
-     * @sn: The #StatusNotifier
+     * StatusNotifierItem::context-menu:
+     * @sn: The #StatusNotifierItem
      * @x: screen coordinates X
      * @y: screen coordinates Y
      *
@@ -562,11 +564,11 @@ status_notifier_class_init (StatusNotifierClass *klass)
      * @x and @y are to be considered an hint to the item about where to show
      * the context menu.
      */
-    status_notifier_signals[SIGNAL_CONTEXT_MENU] = g_signal_new (
+    status_notifier_item_signals[SIGNAL_CONTEXT_MENU] = g_signal_new (
             "context-menu",
-            TYPE_STATUS_NOTIFIER,
+            STATUS_NOTIFIER_TYPE_ITEM,
             G_SIGNAL_RUN_LAST,
-            G_STRUCT_OFFSET (StatusNotifierClass, context_menu),
+            G_STRUCT_OFFSET (StatusNotifierItemClass, context_menu),
             g_signal_accumulator_true_handled,
             NULL,
             g_cclosure_user_marshal_BOOLEAN__INT_INT,
@@ -576,8 +578,8 @@ status_notifier_class_init (StatusNotifierClass *klass)
             G_TYPE_INT);
 
     /**
-     * StatusNotifier::activate:
-     * @sn: The #StatusNotifier
+     * StatusNotifierItem::activate:
+     * @sn: The #StatusNotifierItem
      * @x: screen coordinates X
      * @y: screen coordinates Y
      *
@@ -588,11 +590,11 @@ status_notifier_class_init (StatusNotifierClass *klass)
      * @x and @y are to be considered an hint to the item about where to show
      * the context menu.
      */
-    status_notifier_signals[SIGNAL_ACTIVATE] = g_signal_new (
+    status_notifier_item_signals[SIGNAL_ACTIVATE] = g_signal_new (
             "activate",
-            TYPE_STATUS_NOTIFIER,
+            STATUS_NOTIFIER_TYPE_ITEM,
             G_SIGNAL_RUN_LAST,
-            G_STRUCT_OFFSET (StatusNotifierClass, activate),
+            G_STRUCT_OFFSET (StatusNotifierItemClass, activate),
             g_signal_accumulator_true_handled,
             NULL,
             g_cclosure_user_marshal_BOOLEAN__INT_INT,
@@ -602,25 +604,25 @@ status_notifier_class_init (StatusNotifierClass *klass)
             G_TYPE_INT);
 
     /**
-     * StatusNotifier::secondary-activate:
-     * @sn: The #StatusNotifier
+     * StatusNotifierItem::secondary-activate:
+     * @sn: The #StatusNotifierItem
      * @x: screen coordinates X
      * @y: screen coordinates Y
      *
      * Emitted when the SecondaryActivate method was called on the item.
      * Secondary and less important form of activation (compared to
-     * #StatusNotifier::activate) of the item was requested. This is typically a
-     * consequence of user input, such as mouse middle click over the graphical
-     * representation of the item.
+     * #StatusNotifierItem::activate) of the item was requested. This is
+     * typically a consequence of user input, such as mouse middle click over
+     * the graphical representation of the item.
      *
      * @x and @y are to be considered an hint to the item about where to show
      * the context menu.
      */
-    status_notifier_signals[SIGNAL_SECONDARY_ACTIVATE] = g_signal_new (
+    status_notifier_item_signals[SIGNAL_SECONDARY_ACTIVATE] = g_signal_new (
             "secondary-activate",
-            TYPE_STATUS_NOTIFIER,
+            STATUS_NOTIFIER_TYPE_ITEM,
             G_SIGNAL_RUN_LAST,
-            G_STRUCT_OFFSET (StatusNotifierClass, secondary_activate),
+            G_STRUCT_OFFSET (StatusNotifierItemClass, secondary_activate),
             g_signal_accumulator_true_handled,
             NULL,
             g_cclosure_user_marshal_BOOLEAN__INT_INT,
@@ -630,8 +632,8 @@ status_notifier_class_init (StatusNotifierClass *klass)
             G_TYPE_INT);
 
     /**
-     * StatusNotifier::scroll:
-     * @sn: The #StatusNotifier
+     * StatusNotifierItem::scroll:
+     * @sn: The #StatusNotifierItem
      * @delta: the amount of scroll
      * @orientation: orientation of the scroll request
      *
@@ -639,11 +641,11 @@ status_notifier_class_init (StatusNotifierClass *klass)
      * a scroll action. This is caused from input such as mouse wheel over the
      * graphical representation of the item.
      */
-    status_notifier_signals[SIGNAL_SCROLL] = g_signal_new (
+    status_notifier_item_signals[SIGNAL_SCROLL] = g_signal_new (
             "scroll",
-            TYPE_STATUS_NOTIFIER,
+            STATUS_NOTIFIER_TYPE_ITEM,
             G_SIGNAL_RUN_LAST,
-            G_STRUCT_OFFSET (StatusNotifierClass, scroll),
+            G_STRUCT_OFFSET (StatusNotifierItemClass, scroll),
             g_signal_accumulator_true_handled,
             NULL,
             g_cclosure_user_marshal_BOOLEAN__INT_INT,
@@ -652,24 +654,24 @@ status_notifier_class_init (StatusNotifierClass *klass)
             G_TYPE_INT,
             TYPE_STATUS_NOTIFIER_SCROLL_ORIENTATION);
 
-    g_type_class_add_private (klass, sizeof (StatusNotifierPrivate));
+    g_type_class_add_private (klass, sizeof (StatusNotifierItemPrivate));
 }
 
 static void
-status_notifier_init (StatusNotifier *sn)
+status_notifier_item_init (StatusNotifierItem *sn)
 {
     sn->priv = G_TYPE_INSTANCE_GET_PRIVATE (sn,
-            TYPE_STATUS_NOTIFIER, StatusNotifierPrivate);
+            STATUS_NOTIFIER_TYPE_ITEM, StatusNotifierItemPrivate);
 }
 
 static void
-status_notifier_set_property (GObject            *object,
-                              guint               prop_id,
-                              const GValue       *value,
-                              GParamSpec         *pspec)
+status_notifier_item_set_property (GObject            *object,
+                                   guint               prop_id,
+                                   const GValue       *value,
+                                   GParamSpec         *pspec)
 {
-    StatusNotifier *sn = (StatusNotifier *) object;
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItem *sn = (StatusNotifierItem *) object;
+    StatusNotifierItemPrivate *priv = sn->priv;
 
     switch (prop_id)
     {
@@ -677,65 +679,65 @@ status_notifier_set_property (GObject            *object,
             priv->id = g_value_dup_string (value);
             break;
         case PROP_TITLE:
-            status_notifier_set_title (sn, g_value_get_string (value));
+            status_notifier_item_set_title (sn, g_value_get_string (value));
             break;
         case PROP_CATEGORY: /* G_PARAM_CONSTRUCT_ONLY */
             priv->category = g_value_get_enum (value);
             break;
         case PROP_STATUS:
-            status_notifier_set_status (sn, g_value_get_enum (value));
+            status_notifier_item_set_status (sn, g_value_get_enum (value));
             break;
         case PROP_MAIN_ICON_NAME:
-            status_notifier_set_from_icon_name (sn, STATUS_NOTIFIER_ICON,
+            status_notifier_item_set_from_icon_name (sn, STATUS_NOTIFIER_ICON,
                     g_value_get_string (value));
             break;
         case PROP_MAIN_ICON_PIXBUF:
-            status_notifier_set_from_pixbuf (sn, STATUS_NOTIFIER_ICON,
+            status_notifier_item_set_from_pixbuf (sn, STATUS_NOTIFIER_ICON,
                     g_value_get_object (value));
             break;
         case PROP_OVERLAY_ICON_NAME:
-            status_notifier_set_from_icon_name (sn, STATUS_NOTIFIER_OVERLAY_ICON,
+            status_notifier_item_set_from_icon_name (sn, STATUS_NOTIFIER_OVERLAY_ICON,
                     g_value_get_string (value));
             break;
         case PROP_OVERLAY_ICON_PIXBUF:
-            status_notifier_set_from_pixbuf (sn, STATUS_NOTIFIER_OVERLAY_ICON,
+            status_notifier_item_set_from_pixbuf (sn, STATUS_NOTIFIER_OVERLAY_ICON,
                     g_value_get_object (value));
             break;
         case PROP_ATTENTION_ICON_NAME:
-            status_notifier_set_from_icon_name (sn, STATUS_NOTIFIER_ATTENTION_ICON,
+            status_notifier_item_set_from_icon_name (sn, STATUS_NOTIFIER_ATTENTION_ICON,
                     g_value_get_string (value));
             break;
         case PROP_ATTENTION_ICON_PIXBUF:
-            status_notifier_set_from_pixbuf (sn, STATUS_NOTIFIER_ATTENTION_ICON,
+            status_notifier_item_set_from_pixbuf (sn, STATUS_NOTIFIER_ATTENTION_ICON,
                     g_value_get_object (value));
             break;
         case PROP_ATTENTION_MOVIE_NAME:
-            status_notifier_set_attention_movie_name (sn, g_value_get_string (value));
+            status_notifier_item_set_attention_movie_name (sn, g_value_get_string (value));
             break;
         case PROP_TOOLTIP_ICON_NAME:
-            status_notifier_set_from_icon_name (sn, STATUS_NOTIFIER_TOOLTIP_ICON,
+            status_notifier_item_set_from_icon_name (sn, STATUS_NOTIFIER_TOOLTIP_ICON,
                     g_value_get_string (value));
             break;
         case PROP_TOOLTIP_ICON_PIXBUF:
-            status_notifier_set_from_pixbuf (sn, STATUS_NOTIFIER_TOOLTIP_ICON,
+            status_notifier_item_set_from_pixbuf (sn, STATUS_NOTIFIER_TOOLTIP_ICON,
                     g_value_get_object (value));
             break;
         case PROP_TOOLTIP_TITLE:
-            status_notifier_set_tooltip_title (sn, g_value_get_string (value));
+            status_notifier_item_set_tooltip_title (sn, g_value_get_string (value));
             break;
         case PROP_TOOLTIP_BODY:
-            status_notifier_set_tooltip_body (sn, g_value_get_string (value));
+            status_notifier_item_set_tooltip_body (sn, g_value_get_string (value));
             break;
         case PROP_ITEM_IS_MENU:
-            status_notifier_set_item_is_menu (sn, g_value_get_boolean (value));
+            status_notifier_item_set_item_is_menu (sn, g_value_get_boolean (value));
             break;
 #ifdef USE_DBUSMENU
         case PROP_MENU:
-            status_notifier_set_context_menu (sn, g_value_get_object (value));
+            status_notifier_item_set_context_menu (sn, g_value_get_object (value));
             break;
 #endif
         case PROP_WINDOW_ID:
-            status_notifier_set_window_id (sn, g_value_get_uint (value));
+            status_notifier_item_set_window_id (sn, g_value_get_uint (value));
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -744,13 +746,13 @@ status_notifier_set_property (GObject            *object,
 }
 
 static void
-status_notifier_get_property (GObject            *object,
-                              guint               prop_id,
-                              GValue             *value,
-                              GParamSpec         *pspec)
+status_notifier_item_get_property (GObject            *object,
+                                   guint               prop_id,
+                                   GValue             *value,
+                                   GParamSpec         *pspec)
 {
-    StatusNotifier *sn = (StatusNotifier *) object;
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItem *sn = (StatusNotifierItem *) object;
+    StatusNotifierItemPrivate *priv = sn->priv;
 
     switch (prop_id)
     {
@@ -767,38 +769,38 @@ status_notifier_get_property (GObject            *object,
             g_value_set_enum (value, priv->status);
             break;
         case PROP_MAIN_ICON_NAME:
-            g_value_take_string (value, status_notifier_get_icon_name (sn,
+            g_value_take_string (value, status_notifier_item_get_icon_name (sn,
                         STATUS_NOTIFIER_ICON));
             break;
         case PROP_MAIN_ICON_PIXBUF:
-            g_value_take_object (value, status_notifier_get_pixbuf (sn,
+            g_value_take_object (value, status_notifier_item_get_pixbuf (sn,
                         STATUS_NOTIFIER_ICON));
             break;
         case PROP_OVERLAY_ICON_NAME:
-            g_value_take_string (value, status_notifier_get_icon_name (sn,
+            g_value_take_string (value, status_notifier_item_get_icon_name (sn,
                         STATUS_NOTIFIER_OVERLAY_ICON));
             break;
         case PROP_OVERLAY_ICON_PIXBUF:
-            g_value_take_object (value, status_notifier_get_pixbuf (sn,
+            g_value_take_object (value, status_notifier_item_get_pixbuf (sn,
                         STATUS_NOTIFIER_OVERLAY_ICON));
             break;
         case PROP_ATTENTION_ICON_NAME:
-            g_value_take_string (value, status_notifier_get_icon_name (sn,
+            g_value_take_string (value, status_notifier_item_get_icon_name (sn,
                         STATUS_NOTIFIER_ATTENTION_ICON));
             break;
         case PROP_ATTENTION_ICON_PIXBUF:
-            g_value_take_object (value, status_notifier_get_pixbuf (sn,
+            g_value_take_object (value, status_notifier_item_get_pixbuf (sn,
                         STATUS_NOTIFIER_ATTENTION_ICON));
             break;
         case PROP_ATTENTION_MOVIE_NAME:
             g_value_set_string (value, priv->attention_movie_name);
             break;
         case PROP_TOOLTIP_ICON_NAME:
-            g_value_take_string (value, status_notifier_get_icon_name (sn,
+            g_value_take_string (value, status_notifier_item_get_icon_name (sn,
                         STATUS_NOTIFIER_TOOLTIP_ICON));
             break;
         case PROP_TOOLTIP_ICON_PIXBUF:
-            g_value_take_object (value, status_notifier_get_pixbuf (sn,
+            g_value_take_object (value, status_notifier_item_get_pixbuf (sn,
                         STATUS_NOTIFIER_TOOLTIP_ICON));
             break;
         case PROP_TOOLTIP_TITLE:
@@ -812,7 +814,7 @@ status_notifier_get_property (GObject            *object,
             break;
 #ifdef USE_DBUSMENU
         case PROP_MENU:
-            g_value_set_object (value, status_notifier_get_context_menu (sn));
+            g_value_set_object (value, status_notifier_item_get_context_menu (sn));
             break;
 #endif
         case PROP_WINDOW_ID:
@@ -828,9 +830,9 @@ status_notifier_get_property (GObject            *object,
 }
 
 static void
-free_icon (StatusNotifier *sn, StatusNotifierIcon icon)
+free_icon (StatusNotifierItem *sn, StatusNotifierIcon icon)
 {
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItemPrivate *priv = sn->priv;
 
     if (priv->icon[icon].has_pixbuf)
         g_object_unref (priv->icon[icon].pixbuf);
@@ -841,9 +843,9 @@ free_icon (StatusNotifier *sn, StatusNotifierIcon icon)
 }
 
 static void
-dbus_free (StatusNotifier *sn)
+dbus_free (StatusNotifierItem *sn)
 {
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItemPrivate *priv = sn->priv;
 
     if (priv->dbus_watch_id > 0)
     {
@@ -890,10 +892,10 @@ dbus_free (StatusNotifier *sn)
 }
 
 static void
-status_notifier_finalize (GObject *object)
+status_notifier_item_finalize (GObject *object)
 {
-    StatusNotifier *sn = (StatusNotifier *) object;
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItem *sn = (StatusNotifierItem *) object;
+    StatusNotifierItemPrivate *priv = sn->priv;
     guint i;
 
     g_free (priv->id);
@@ -906,13 +908,13 @@ status_notifier_finalize (GObject *object)
 
     dbus_free (sn);
 
-    G_OBJECT_CLASS (status_notifier_parent_class)->finalize (object);
+    G_OBJECT_CLASS (status_notifier_item_parent_class)->finalize (object);
 }
 
 static void
-dbus_notify (StatusNotifier *sn, guint prop)
+dbus_notify (StatusNotifierItem *sn, guint prop)
 {
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItemPrivate *priv = sn->priv;
     const gchar *signal;
 
     if (priv->state !=  STATUS_NOTIFIER_STATE_REGISTERED)
@@ -972,21 +974,21 @@ dbus_notify (StatusNotifier *sn, guint prop)
 }
 
 /**
- * status_notifier_new_from_pixbuf:
+ * status_notifier_item_new_from_pixbuf:
  * @id: The application id
  * @category: The category for the item
  * @pixbuf: The icon to use as main icon
  *
  * Creates a new item
  *
- * Returns: (transfer full): A new #StatusNotifier
+ * Returns: (transfer full): A new #StatusNotifierItem
  */
-StatusNotifier *
-status_notifier_new_from_pixbuf (const gchar             *id,
-                                 StatusNotifierCategory   category,
-                                 GdkPixbuf               *pixbuf)
+StatusNotifierItem *
+status_notifier_item_new_from_pixbuf (const gchar             *id,
+                                      StatusNotifierCategory   category,
+                                      GdkPixbuf               *pixbuf)
 {
-    return (StatusNotifier *) g_object_new (TYPE_STATUS_NOTIFIER,
+    return (StatusNotifierItem *) g_object_new (STATUS_NOTIFIER_TYPE_ITEM,
             "id",               id,
             "category",         category,
             "main-icon-pixbuf", pixbuf,
@@ -994,21 +996,21 @@ status_notifier_new_from_pixbuf (const gchar             *id,
 }
 
 /**
- * status_notifier_new_from_icon_name:
+ * status_notifier_item_new_from_icon_name:
  * @id: The application id
  * @category: The category for the item
  * @icon_name: The name of the icon to use as main icon
  *
  * Creates a new item
  *
- * Returns: (transfer full): A new #StatusNotifier
+ * Returns: (transfer full): A new #StatusNotifierItem
  */
-StatusNotifier *
-status_notifier_new_from_icon_name (const gchar             *id,
-                                    StatusNotifierCategory   category,
-                                    const gchar             *icon_name)
+StatusNotifierItem *
+status_notifier_item_new_from_icon_name (const gchar             *id,
+                                         StatusNotifierCategory   category,
+                                         const gchar             *icon_name)
 {
-    return (StatusNotifier *) g_object_new (TYPE_STATUS_NOTIFIER,
+    return (StatusNotifierItem *) g_object_new (STATUS_NOTIFIER_TYPE_ITEM,
             "id",               id,
             "category",         category,
             "main-icon-name",   icon_name,
@@ -1016,8 +1018,8 @@ status_notifier_new_from_icon_name (const gchar             *id,
 }
 
 /**
- * status_notifier_get_id:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_id:
+ * @sn: A #StatusNotifierItem
  *
  * Returns the application id of @sn
  *
@@ -1025,30 +1027,30 @@ status_notifier_new_from_icon_name (const gchar             *id,
  * not free it
  */
 const gchar *
-status_notifier_get_id (StatusNotifier          *sn)
+status_notifier_item_get_id (StatusNotifierItem      *sn)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), NULL);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), NULL);
     return sn->priv->id;
 }
 
 /**
- * status_notifier_get_category:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_category:
+ * @sn: A #StatusNotifierItem
  *
  * Returns the category of @sn
  *
  * Returns: The category of @sn
  */
 StatusNotifierCategory
-status_notifier_get_category (StatusNotifier          *sn)
+status_notifier_item_get_category (StatusNotifierItem      *sn)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), -1);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), -1);
     return sn->priv->category;
 }
 
 /**
- * status_notifier_set_from_pixbuf:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_from_pixbuf:
+ * @sn: A #StatusNotifierItem
  * @icon: Which icon to set
  * @pixbuf: A #GdkPixbuf to use for @icon
  *
@@ -1061,13 +1063,13 @@ status_notifier_get_category (StatusNotifier          *sn)
  * other.
  */
 void
-status_notifier_set_from_pixbuf (StatusNotifier          *sn,
-                                 StatusNotifierIcon       icon,
-                                 GdkPixbuf               *pixbuf)
+status_notifier_item_set_from_pixbuf (StatusNotifierItem      *sn,
+                                      StatusNotifierIcon       icon,
+                                      GdkPixbuf               *pixbuf)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
 
     free_icon (sn, icon);
@@ -1080,8 +1082,8 @@ status_notifier_set_from_pixbuf (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_set_from_icon_name:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_from_icon_name:
+ * @sn: A #StatusNotifierItem
  * @icon: Which icon to set
  * @icon_name: Name of an icon to use for @icon
  *
@@ -1094,13 +1096,13 @@ status_notifier_set_from_pixbuf (StatusNotifier          *sn,
  * other.
  */
 void
-status_notifier_set_from_icon_name (StatusNotifier          *sn,
-                                    StatusNotifierIcon       icon,
-                                    const gchar             *icon_name)
+status_notifier_item_set_from_icon_name (StatusNotifierItem      *sn,
+                                         StatusNotifierIcon       icon,
+                                         const gchar             *icon_name)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
 
     free_icon (sn, icon);
@@ -1112,8 +1114,8 @@ status_notifier_set_from_icon_name (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_has_pixbuf:
- * @sn: A #StatusNotifier
+ * status_notifier_item_has_pixbuf:
+ * @sn: A #StatusNotifierItem
  * @icon: Which icon
  *
  * Returns whether icon @icon currently has a #GdkPixbuf set or not. If so, the
@@ -1122,16 +1124,16 @@ status_notifier_set_from_icon_name (StatusNotifier          *sn,
  * Returns: %TRUE is a #GdkPixbuf is set for @icon, else %FALSE
  */
 gboolean
-status_notifier_has_pixbuf (StatusNotifier          *sn,
-                            StatusNotifierIcon       icon)
+status_notifier_item_has_pixbuf (StatusNotifierItem      *sn,
+                                 StatusNotifierIcon       icon)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), FALSE);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), FALSE);
     return sn->priv->icon[icon].has_pixbuf;
 }
 
 /**
- * status_notifier_get_pixbuf:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_pixbuf:
+ * @sn: A #StatusNotifierItem
  * @icon: The icon to get
  *
  * Returns the #GdkPixbuf set for @icon, if there's one. Not that it will return
@@ -1140,12 +1142,12 @@ status_notifier_has_pixbuf (StatusNotifier          *sn,
  * Returns: (transfer full): The #GdkPixbuf set for @icon, or %NULL
  */
 GdkPixbuf *
-status_notifier_get_pixbuf (StatusNotifier          *sn,
-                            StatusNotifierIcon       icon)
+status_notifier_item_get_pixbuf (StatusNotifierItem      *sn,
+                                 StatusNotifierIcon       icon)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), NULL);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), NULL);
     priv = sn->priv;
 
     if (!priv->icon[icon].has_pixbuf)
@@ -1155,8 +1157,8 @@ status_notifier_get_pixbuf (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_get_icon_name:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_icon_name:
+ * @sn: A #StatusNotifierItem
  * @icon: The icon to get
  *
  * Returns the icon name set for @icon, if there's one. Not that it will return
@@ -1166,12 +1168,12 @@ status_notifier_get_pixbuf (StatusNotifier          *sn,
  * @icon, free using g_free()
  */
 gchar *
-status_notifier_get_icon_name (StatusNotifier          *sn,
-                               StatusNotifierIcon       icon)
+status_notifier_item_get_icon_name (StatusNotifierItem      *sn,
+                                    StatusNotifierIcon       icon)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), NULL);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), NULL);
     priv = sn->priv;
 
     if (priv->icon[icon].has_pixbuf)
@@ -1181,8 +1183,8 @@ status_notifier_get_icon_name (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_set_attention_movie_name:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_attention_movie_name:
+ * @sn: A #StatusNotifierItem
  * @movie_name: The name of the movie
  *
  * In addition to the icon, the item can also specify an animation associated to
@@ -1193,12 +1195,12 @@ status_notifier_get_icon_name (StatusNotifier          *sn,
  * at its discretion.
  */
 void
-status_notifier_set_attention_movie_name (StatusNotifier          *sn,
-                                          const gchar             *movie_name)
+status_notifier_item_set_attention_movie_name (StatusNotifierItem      *sn,
+                                               const gchar             *movie_name)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
 
     g_free (priv->attention_movie_name);
@@ -1208,8 +1210,8 @@ status_notifier_set_attention_movie_name (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_get_attention_movie_name:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_attention_movie_name:
+ * @sn: A #StatusNotifierItem
  *
  * Returns the movie name set for animation associated with the
  * #STATUS_NOTIFIER_STATUS_NEEDS_ATTENTION status
@@ -1218,27 +1220,27 @@ status_notifier_set_attention_movie_name (StatusNotifier          *sn,
  * when done
  */
 gchar *
-status_notifier_get_attention_movie_name (StatusNotifier          *sn)
+status_notifier_item_get_attention_movie_name (StatusNotifierItem      *sn)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), NULL);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), NULL);
     return g_strdup (sn->priv->attention_movie_name);
 }
 
 /**
- * status_notifier_set_title:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_title:
+ * @sn: A #StatusNotifierItem
  * @title: The title
  *
  * Sets the title of the item (might be used by visualization e.g. in menu of
  * hidden items when #STATUS_NOTIFIER_STATUS_PASSIVE)
  */
 void
-status_notifier_set_title (StatusNotifier          *sn,
-                           const gchar             *title)
+status_notifier_item_set_title (StatusNotifierItem      *sn,
+                                const gchar             *title)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
 
     g_free (priv->title);
@@ -1249,35 +1251,35 @@ status_notifier_set_title (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_get_title:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_title:
+ * @sn: A #StatusNotifierItem
  *
  * Returns the title of the item
  *
  * Returns: A newly allocated string, free with g_free() when done
  */
 gchar *
-status_notifier_get_title (StatusNotifier          *sn)
+status_notifier_item_get_title (StatusNotifierItem      *sn)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), NULL);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), NULL);
     return g_strdup (sn->priv->title);
 }
 
 /**
- * status_notifier_set_status:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_status:
+ * @sn: A #StatusNotifierItem
  * @status: The new status
  *
  * Sets the item status to @status, describing the status of this item or of the
  * associated application.
  */
 void
-status_notifier_set_status (StatusNotifier          *sn,
-                            StatusNotifierStatus     status)
+status_notifier_item_set_status (StatusNotifierItem      *sn,
+                                 StatusNotifierStatus     status)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
 
     priv->status = status;
@@ -1287,23 +1289,23 @@ status_notifier_set_status (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_get_status:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_status:
+ * @sn: A #StatusNotifierItem
  *
  * Returns the status of @sn
  *
  * Returns: Current status of @sn
  */
 StatusNotifierStatus
-status_notifier_get_status (StatusNotifier          *sn)
+status_notifier_item_get_status (StatusNotifierItem      *sn)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), -1);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), -1);
     return sn->priv->status;
 }
 
 /**
- * status_notifier_set_window_id:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_window_id:
+ * @sn: A #StatusNotifierItem
  * @window_id: The window ID
  *
  * Sets the window ID for @sn
@@ -1313,12 +1315,12 @@ status_notifier_get_status (StatusNotifier          *sn)
  * 0 if it's not interested.
  */
 void
-status_notifier_set_window_id (StatusNotifier          *sn,
-                               guint32                  window_id)
+status_notifier_item_set_window_id (StatusNotifierItem      *sn,
+                                    guint32                  window_id)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
 
     priv->window_id = window_id;
@@ -1327,8 +1329,8 @@ status_notifier_set_window_id (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_get_window_id:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_window_id:
+ * @sn: A #StatusNotifierItem
  *
  * Returns the windowing-system dependent idnetifier for a window associated
  * with @sn
@@ -1336,40 +1338,40 @@ status_notifier_set_window_id (StatusNotifier          *sn,
  * Returns: The window ID associated with @sn
  */
 guint32
-status_notifier_get_window_id (StatusNotifier          *sn)
+status_notifier_item_get_window_id (StatusNotifierItem      *sn)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), 0);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), 0);
     return sn->priv->window_id;
 }
 
 /**
- * status_notifier_freeze_tooltip:
- * @sn:A #StatusNotifier
+ * status_notifier_item_freeze_tooltip:
+ * @sn:A #StatusNotifierItem
  *
  * Increases the freeze count for tooltip on @sn. If the freeze count is
  * non-zero, the emission of a DBus signal for StatusNotifierHost to refresh the
  * ToolTip property will be blocked until the freeze count drops back to zero
- * (via status_notifier_thaw_tooltip())
+ * (via status_notifier_item_thaw_tooltip())
  *
  * This is to allow to set the different properties forming the tooltip (title,
  * body and icon) without triggering a refresh afetr each change (as there is a
  * single property ToolTip on the DBus item, with all data).
  *
- * Every call to status_notifier_freeze_tooltip() should later be followed by a
- * call to status_notifier_thaw_tooltip()
+ * Every call to status_notifier_item_freeze_tooltip() should later be followed by a
+ * call to status_notifier_item_thaw_tooltip()
  */
 void
-status_notifier_freeze_tooltip (StatusNotifier          *sn)
+status_notifier_item_freeze_tooltip (StatusNotifierItem      *sn)
 {
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     ++sn->priv->tooltip_freeze;
 }
 
 /**
- * status_notifier_thaw_tooltip:
- * @sn: A #StatusNotifier
+ * status_notifier_item_thaw_tooltip:
+ * @sn: A #StatusNotifierItem
  *
- * Reverts the effect of a previous call to status_notifier_freeze_tooltip(). If
+ * Reverts the effect of a previous call to status_notifier_item_freeze_tooltip(). If
  * the freeze count drops back to zero, a signal NewToolTip will be emitted on
  * the DBus object for @sn, for StatusNotifierHost to refresh its ToolTip
  * property.
@@ -1377,11 +1379,11 @@ status_notifier_freeze_tooltip (StatusNotifier          *sn)
  * It is an error to call this function when the freeze count is zero.
  */
 void
-status_notifier_thaw_tooltip (StatusNotifier          *sn)
+status_notifier_item_thaw_tooltip (StatusNotifierItem      *sn)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
     g_return_if_fail (priv->tooltip_freeze > 0);
 
@@ -1390,8 +1392,8 @@ status_notifier_thaw_tooltip (StatusNotifier          *sn)
 }
 
 /**
- * status_notifier_set_tooltip:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_tooltip:
+ * @sn: A #StatusNotifierItem
  * @icon_name: The icon name to be used for #STATUS_NOTIFIER_TOOLTIP_ICON
  * @title: The title of the tooltip
  * @body: The body of the tooltip
@@ -1402,50 +1404,50 @@ status_notifier_thaw_tooltip (StatusNotifier          *sn)
  * It is equivalent to the following code, and similar code can be used e.g. to
  * set the icon from a #GdkPixbuf instead:
  * <programlisting>
- * status_notifier_freeze_tooltip (sn);
- * status_notifier_set_from_icon_name (sn, STATUS_NOTIFIER_TOOLTIP_ICON, icon_name);
- * status_notifier_set_tooltip_title (sn, title);
- * status_notifier_set_tooltip_body (sn, body);
- * status_notifier_thaw_tooltip (sn);
+ * status_notifier_item_freeze_tooltip (sn);
+ * status_notifier_item_set_from_icon_name (sn, STATUS_NOTIFIER_TOOLTIP_ICON, icon_name);
+ * status_notifier_item_set_tooltip_title (sn, title);
+ * status_notifier_item_set_tooltip_body (sn, body);
+ * status_notifier_item_thaw_tooltip (sn);
  * </programlisting>
  */
 void
-status_notifier_set_tooltip (StatusNotifier          *sn,
-                             const gchar             *icon_name,
-                             const gchar             *title,
-                             const gchar             *body)
+status_notifier_item_set_tooltip (StatusNotifierItem      *sn,
+                                  const gchar             *icon_name,
+                                  const gchar             *title,
+                                  const gchar             *body)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
 
     ++priv->tooltip_freeze;
-    status_notifier_set_from_icon_name (sn, STATUS_NOTIFIER_TOOLTIP_ICON, icon_name);
-    status_notifier_set_tooltip_title (sn, title);
-    status_notifier_set_tooltip_body (sn, body);
-    status_notifier_thaw_tooltip (sn);
+    status_notifier_item_set_from_icon_name (sn, STATUS_NOTIFIER_TOOLTIP_ICON, icon_name);
+    status_notifier_item_set_tooltip_title (sn, title);
+    status_notifier_item_set_tooltip_body (sn, body);
+    status_notifier_item_thaw_tooltip (sn);
 }
 
 /**
- * status_notifier_set_tooltip_title:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_tooltip_title:
+ * @sn: A #StatusNotifierItem
  * @title: The tooltip title
  *
  * Sets the title of the tooltip
  *
  * The tooltip is composed of a title, a body, and an icon. Note that changing
  * any of these will trigger a DBus signal NewToolTip (for hosts to refresh DBus
- * property ToolTip), see status_notifier_freeze_tooltip() for changing more
+ * property ToolTip), see status_notifier_item_freeze_tooltip() for changing more
  * than one and only emitting one DBus signal at the end.
  */
 void
-status_notifier_set_tooltip_title (StatusNotifier          *sn,
-                                   const gchar             *title)
+status_notifier_item_set_tooltip_title (StatusNotifierItem      *sn,
+                                        const gchar             *title)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
 
     g_free (priv->tooltip_title);
@@ -1457,8 +1459,8 @@ status_notifier_set_tooltip_title (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_get_tooltip_title:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_tooltip_title:
+ * @sn: A #StatusNotifierItem
  *
  * Returns the tooltip title
  *
@@ -1466,15 +1468,15 @@ status_notifier_set_tooltip_title (StatusNotifier          *sn,
  * done
  */
 gchar *
-status_notifier_get_tooltip_title (StatusNotifier          *sn)
+status_notifier_item_get_tooltip_title (StatusNotifierItem      *sn)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), NULL);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), NULL);
     return g_strdup (sn->priv->tooltip_title);
 }
 
 /**
- * status_notifier_set_tooltip_body:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_tooltip_body:
+ * @sn: A #StatusNotifierItem
  * @body: The tooltip body
  *
  * Sets the body of the tooltip
@@ -1484,16 +1486,16 @@ status_notifier_get_tooltip_title (StatusNotifier          *sn)
  *
  * The tooltip is composed of a title, a body, and an icon. Note that changing
  * any of these will trigger a DBus signal NewToolTip (for hosts to refresh DBus
- * property ToolTip), see status_notifier_freeze_tooltip() for changing more
+ * property ToolTip), see status_notifier_item_freeze_tooltip() for changing more
  * than one and only emitting one DBus signal at the end.
  */
 void
-status_notifier_set_tooltip_body (StatusNotifier          *sn,
-                                  const gchar             *body)
+status_notifier_item_set_tooltip_body (StatusNotifierItem      *sn,
+                                       const gchar             *body)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
 
     g_free (priv->tooltip_body);
@@ -1505,17 +1507,17 @@ status_notifier_set_tooltip_body (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_get_tooltip_body:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_tooltip_body:
+ * @sn: A #StatusNotifierItem
  *
  * Returns the tooltip body
  *
  * Returns: A newly allocated string of the tooltip body, use g_free() when done
  */
 gchar *
-status_notifier_get_tooltip_body (StatusNotifier          *sn)
+status_notifier_item_get_tooltip_body (StatusNotifierItem      *sn)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), NULL);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), NULL);
     return g_strdup (sn->priv->tooltip_body);
 }
 
@@ -1529,7 +1531,7 @@ method_call (GDBusConnection        *conn,
              GDBusMethodInvocation  *invocation,
              gpointer                data)
 {
-    StatusNotifier *sn = (StatusNotifier *) data;
+    StatusNotifierItem *sn = (StatusNotifierItem *) data;
     guint signal;
     gint x, y;
     gboolean ret;
@@ -1552,7 +1554,7 @@ method_call (GDBusConnection        *conn,
             orientation = STATUS_NOTIFIER_SCROLL_ORIENTATION_HORIZONTAL;
         g_free (s_orientation);
 
-        g_signal_emit (sn, status_notifier_signals[SIGNAL_SCROLL], 0,
+        g_signal_emit (sn, status_notifier_item_signals[SIGNAL_SCROLL], 0,
                 delta, orientation, &ret);
         g_dbus_method_invocation_return_value (invocation, NULL);
         return;
@@ -1562,14 +1564,14 @@ method_call (GDBusConnection        *conn,
         g_return_if_reached ();
 
     g_variant_get (params, "(ii)", &x, &y);
-    g_signal_emit (sn, status_notifier_signals[signal], 0, x, y, &ret);
+    g_signal_emit (sn, status_notifier_item_signals[signal], 0, x, y, &ret);
     g_dbus_method_invocation_return_value (invocation, NULL);
 }
 
 static GVariantBuilder *
-get_builder_for_icon_pixmap (StatusNotifier *sn, StatusNotifierIcon icon)
+get_builder_for_icon_pixmap (StatusNotifierItem *sn, StatusNotifierIcon icon)
 {
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItemPrivate *priv = sn->priv;
     GVariantBuilder *builder;
     cairo_surface_t *surface;
     cairo_t *cr;
@@ -1623,8 +1625,8 @@ get_prop (GDBusConnection        *conn,
           GError                **error,
           gpointer                data)
 {
-    StatusNotifier *sn = (StatusNotifier *) data;
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItem *sn = (StatusNotifierItem *) data;
+    StatusNotifierItemPrivate *priv = sn->priv;
 
     if (!g_strcmp0 (property, "Id"))
         return g_variant_new ("s", priv->id);
@@ -1727,9 +1729,9 @@ get_prop (GDBusConnection        *conn,
 }
 
 static void
-dbus_failed (StatusNotifier *sn, GError *error, gboolean fatal)
+dbus_failed (StatusNotifierItem *sn, GError *error, gboolean fatal)
 {
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItemPrivate *priv = sn->priv;
 
     dbus_free (sn);
     if (fatal)
@@ -1737,7 +1739,7 @@ dbus_failed (StatusNotifier *sn, GError *error, gboolean fatal)
         priv->state = STATUS_NOTIFIER_STATE_FAILED;
         notify (sn, PROP_STATE);
     }
-    g_signal_emit (sn, status_notifier_signals[SIGNAL_REGISTRATION_FAILED], 0,
+    g_signal_emit (sn, status_notifier_item_signals[SIGNAL_REGISTRATION_FAILED], 0,
             error);
     g_error_free (error);
 }
@@ -1746,8 +1748,8 @@ static void
 bus_acquired (GDBusConnection *conn, const gchar *name, gpointer data)
 {
     GError *err = NULL;
-    StatusNotifier *sn = (StatusNotifier *) data;
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItem *sn = (StatusNotifierItem *) data;
+    StatusNotifierItemPrivate *priv = sn->priv;
     GDBusInterfaceVTable interface_vtable = {
         .method_call = method_call,
         .get_property = get_prop,
@@ -1776,8 +1778,8 @@ static void
 register_item_cb (GObject *sce, GAsyncResult *result, gpointer data)
 {
     GError *err = NULL;
-    StatusNotifier *sn = (StatusNotifier *) data;
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItem *sn = (StatusNotifierItem *) data;
+    StatusNotifierItemPrivate *priv = sn->priv;
     GVariant *variant;
 
     variant = g_dbus_proxy_call_finish ((GDBusProxy *) sce, result, &err);
@@ -1795,8 +1797,8 @@ register_item_cb (GObject *sce, GAsyncResult *result, gpointer data)
 static void
 name_acquired (GDBusConnection *conn, const gchar *name, gpointer data)
 {
-    StatusNotifier *sn = (StatusNotifier *) data;
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItem *sn = (StatusNotifierItem *) data;
+    StatusNotifierItemPrivate *priv = sn->priv;
 
     g_dbus_proxy_call (priv->dbus_proxy,
             "RegisterStatusNotifierItem",
@@ -1814,7 +1816,7 @@ static void
 name_lost (GDBusConnection *conn, const gchar *name, gpointer data)
 {
     GError *err = NULL;
-    StatusNotifier *sn = (StatusNotifier *) data;
+    StatusNotifierItem *sn = (StatusNotifierItem *) data;
 
     if (!conn)
         g_set_error (&err, STATUS_NOTIFIER_ERROR,
@@ -1828,9 +1830,9 @@ name_lost (GDBusConnection *conn, const gchar *name, gpointer data)
 }
 
 static void
-dbus_reg_item (StatusNotifier *sn)
+dbus_reg_item (StatusNotifierItem *sn)
 {
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItemPrivate *priv = sn->priv;
     gchar buf[64], *b = buf;
 
     if (G_UNLIKELY (g_snprintf (buf, 64, "org.kde.StatusNotifierItem-%u-%u",
@@ -1849,13 +1851,13 @@ dbus_reg_item (StatusNotifier *sn)
 }
 
 static void
-watcher_signal (GDBusProxy      *proxy,
-                const gchar     *sender,
-                const gchar     *signal,
-                GVariant        *params,
-                StatusNotifier  *sn)
+watcher_signal (GDBusProxy          *proxy,
+                const gchar         *sender,
+                const gchar         *signal,
+                GVariant            *params,
+                StatusNotifierItem  *sn)
 {
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItemPrivate *priv = sn->priv;
 
     if (!g_strcmp0 (signal, "StatusNotifierHostRegistered"))
     {
@@ -1870,8 +1872,8 @@ static void
 proxy_cb (GObject *sce, GAsyncResult *result, gpointer data)
 {
     GError *err = NULL;
-    StatusNotifier *sn = (StatusNotifier *) data;
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItem *sn = (StatusNotifierItem *) data;
+    StatusNotifierItemPrivate *priv = sn->priv;
     GVariant *variant;
 
     priv->dbus_proxy = g_dbus_proxy_new_for_bus_finish (result, &err);
@@ -1915,8 +1917,8 @@ watcher_appeared (GDBusConnection   *conn,
                   const gchar       *owner,
                   gpointer           data)
 {
-    StatusNotifier *sn = data;
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItem *sn = data;
+    StatusNotifierItemPrivate *priv = sn->priv;
     GDBusNodeInfo *info;
 
     g_bus_unwatch_name (priv->dbus_watch_id);
@@ -1941,8 +1943,8 @@ watcher_vanished (GDBusConnection   *conn,
                   gpointer           data)
 {
     GError *err = NULL;
-    StatusNotifier *sn = data;
-    StatusNotifierPrivate *priv = sn->priv;
+    StatusNotifierItem *sn = data;
+    StatusNotifierItemPrivate *priv = sn->priv;
     guint id;
 
     /* keep the watch active, so if a watcher shows up we'll resume the
@@ -1960,49 +1962,50 @@ watcher_vanished (GDBusConnection   *conn,
 }
 
 /**
- * status_notifier_register:
- * @sn: A #StatusNotifier
+ * status_notifier_item_register:
+ * @sn: A #StatusNotifierItem
  *
  * Registers @sn to the StatusNotifierWatcher over DBus.
  *
- * Once you have created your #StatusNotifier you need to register it, so any
- * host/visualization can use it and update their GUI as needed.
+ * Once you have created your #StatusNotifierItem you need to register it, so
+ * any host/visualization can use it and update their GUI as needed.
  *
  * This function will connect to the StatusNotifierWatcher and make sure at
  * least one StatusNotifierHost is registered. Then, it will register a new
  * StatusNotifierItem on the session bus and register it with the watcher.
  *
- * When done, property #StatusNotifier:state will change to
+ * When done, property #StatusNotifierItem:state will change to
  * %STATUS_NOTIFIER_STATE_REGISTERED. If something fails, signal
- * #StatusNotifier::registration-failed will be emitted, at which point you
+ * #StatusNotifierItem::registration-failed will be emitted, at which point you
  * should fallback to using the systray.
  *
  * However there are two possible types of failures: fatal and non-fatal ones.
- * Fatal error means that #StatusNotifier:state will be
+ * Fatal error means that #StatusNotifierItem:state will be
  * %STATUS_NOTIFIER_STATE_FAILED and you can unref @sn.
  *
  * Non-fatal error means it will still be %STATUS_NOTIFIER_STATE_REGISTERING as
  * the registration process could still eventually succeed. For example, if
  * there was no host registered on the watcher, as soon as signal
  * StatusNotifierHostRegistered is emitted on the watcher, the registration
- * process for @sn will complete and #StatusNotifier:state set to
+ * process for @sn will complete and #StatusNotifierItem:state set to
  * %STATUS_NOTIFIER_STATE_REGISTERED, at which point you should stop using the
  * systray.
  *
  * This also means it is possible to have multiple signals
- * #StatusNotifier::registration-failed emitted on the same #StatusNotifier.
+ * #StatusNotifierItem::registration-failed emitted on the same
+ * #StatusNotifierItem.
  *
- * Note that you can call status_notifier_register() after a fatal error
+ * Note that you can call status_notifier_item_register() after a fatal error
  * occured, to try again. You can also unref @sn while it is
  * %STATUS_NOTIFIER_STATE_REGISTERING safely.
  */
 void
-status_notifier_register (StatusNotifier          *sn)
+status_notifier_item_register (StatusNotifierItem      *sn)
 
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     priv = sn->priv;
 
     if (priv->state == STATUS_NOTIFIER_STATE_REGISTERING
@@ -2019,80 +2022,81 @@ status_notifier_register (StatusNotifier          *sn)
 }
 
 /**
- * status_notifier_get_state:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_state:
+ * @sn: A #StatusNotifierItem
  *
- * Returns the DBus registration state of @sn. See status_notifier_register()
- * for more.
+ * Returns the DBus registration state of @sn. See
+ * status_notifier_item_register() for more.
  *
  * Returns: The DBus registration state of @sn
  */
 StatusNotifierState
-status_notifier_get_state (StatusNotifier          *sn)
+status_notifier_item_get_state (StatusNotifierItem      *sn)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), FALSE);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), FALSE);
     return sn->priv->state;
 }
 
 /**
- * status_notifier_set_item_is_menu:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_item_is_menu:
+ * @sn: A #StatusNotifierItem
  * @is_menu: Whether or not @sn only supports context menu
  *
  * This is only an indication for the visualization (i.e. the
  * StatusNotifierHost) as to how to handle user interactions.
  *
  * Specifically, if %TRUE it should prefer showing the menu (when set via
- * #StatusNotifier:menu or status_notifier_set_context_menu()) or trigger
- * #StatusNotifier::context-menu instead of #StatusNotifier::activate
+ * #StatusNotifierItem:menu or status_notifier_item_set_context_menu()) or
+ * trigger #StatusNotifierItem::context-menu instead of
+ * #StatusNotifierItem::activate
  */
 void
-status_notifier_set_item_is_menu (StatusNotifier          *sn,
-                                  gboolean                 is_menu)
+status_notifier_item_set_item_is_menu (StatusNotifierItem      *sn,
+                                       gboolean                 is_menu)
 {
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     sn->priv->item_is_menu = is_menu;
 }
 
 /**
- * status_notifier_get_item_is_menu:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_item_is_menu:
+ * @sn: A #StatusNotifierItem
  *
  * Returns whether or not @sn only supports context menu. See
- * status_notifier_set_item_is_menu() for more.
+ * status_notifier_item_set_item_is_menu() for more.
  *
  * Returns: Whether or not @sn only supports context menu
  */
 gboolean
-status_notifier_get_item_is_menu (StatusNotifier          *sn)
+status_notifier_item_get_item_is_menu (StatusNotifierItem      *sn)
 {
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), FALSE);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), FALSE);
     return sn->priv->item_is_menu;
 }
 
 #ifdef USE_DBUSMENU
 /**
- * status_notifier_set_context_menu:
- * @sn: A #StatusNotifier
+ * status_notifier_item_set_context_menu:
+ * @sn: A #StatusNotifierItem
  * @menu: (allow-none): A #GtkWidget of the menu to set as context menu or %NULL
  *
  * Exports specified context menu via dbus.
  * If @menu is set, g_object_ref_sink() will be used to take ownership.
- * Also note that no #StatusNotifier::context_menu signals will be emitted
+ * Also note that no #StatusNotifierItem::context_menu signals will be emitted
  * when a context menu is set/shared via DBus.
  * If @menu is %NULL any current menu will be unset (and
- * #StatusNotifier::context_menu signals will be emitted as needed again).
+ * #StatusNotifierItem::context_menu signals will be emitted as needed again).
  *
  * Only available if dbusmenu support was enabled in compile-time.
  */
 void
-status_notifier_set_context_menu (StatusNotifier          *sn,
-                                  GtkWidget               *menu)
+status_notifier_item_set_context_menu (StatusNotifierItem      *sn,
+                                       GtkWidget               *menu)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
     DbusmenuMenuitem *root = NULL;
 
-    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
     g_return_if_fail (!menu || GTK_IS_MENU (menu));
     priv = sn->priv;
 
@@ -2124,8 +2128,8 @@ status_notifier_set_context_menu (StatusNotifier          *sn,
 }
 
 /**
- * status_notifier_get_context_menu:
- * @sn: A #StatusNotifier
+ * status_notifier_item_get_context_menu:
+ * @sn: A #StatusNotifierItem
  *
  * Returns the #GtkWidget set as context menu, or %NULL
  *
@@ -2134,11 +2138,11 @@ status_notifier_set_context_menu (StatusNotifier          *sn,
  * Returns: (transfer none): #GtkWidget or %NULL (if menu was not setuped)
  */
 GtkWidget *
-status_notifier_get_context_menu (StatusNotifier          *sn)
+status_notifier_item_get_context_menu (StatusNotifierItem      *sn)
 {
-    StatusNotifierPrivate *priv;
+    StatusNotifierItemPrivate *priv;
 
-    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), NULL);
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), NULL);
     priv = sn->priv;
 
     return priv->menu;
