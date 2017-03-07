@@ -73,8 +73,13 @@
  * signals (such as #StatusNotifier::context-menu) which will be emitted when
  * the corresponding DBus method was called.
  *
- * For reference, the KDE specifications can be found at
- * http://www.notmart.org/misc/statusnotifieritem/index.html
+ * For reference, the specifications can be found at
+ * https://freedesktop.org/wiki/Specifications/StatusNotifierItem/
+ *
+ * Note that statusnotifier uses org.kde.* instead of the mentionned
+ * org.freedesktop.* as the former was in the original specifications (still
+ * available at http://www.notmart.org/misc/statusnotifieritem/index.html) and
+ * seem to be the one actually in use.
  */
 
 enum
@@ -96,6 +101,7 @@ enum
     PROP_TOOLTIP_ICON_PIXBUF,
     PROP_TOOLTIP_TITLE,
     PROP_TOOLTIP_BODY,
+    PROP_ITEM_IS_MENU,
 #ifdef USE_DBUSMENU
     PROP_MENU,
 #endif
@@ -146,6 +152,7 @@ struct _StatusNotifierPrivate
     gchar *tooltip_title;
     gchar *tooltip_body;
     guint32 window_id;
+    gboolean item_is_menu;
 
     guint tooltip_freeze;
 
@@ -444,13 +451,27 @@ status_notifier_class_init (StatusNotifierClass *klass)
      * changing more than one and only emitting one DBus signal at the end.
      *
      * This body can contain some markup, which consists of a small subset of
-     * XHTML. See http://www.notmart.org/misc/statusnotifieritem/markup.html for
-     * more.
+     * XHTML. See
+     * https://freedesktop.org/wiki/Specifications/StatusNotifierItem/Markup/
+     * for more.
      */
     status_notifier_props[PROP_TOOLTIP_BODY] =
         g_param_spec_string ("tooltip-body", "tooltip-body",
                 "Body of the tooltip",
                 NULL,
+                G_PARAM_READWRITE);
+
+
+    /**
+     * StatusNotifier:item-is-menu:
+     *
+     * Whether or not this #StatusNotifier only supports a context menu or
+     * not. See status_notifier_set_item_is_menu() for more.
+     */
+    status_notifier_props[PROP_ITEM_IS_MENU] =
+        g_param_spec_boolean ("item-is-menu", "item-is-menu",
+                "Whether or not the item only supports context menu",
+                FALSE,
                 G_PARAM_READWRITE);
 
 #ifdef USE_DBUSMENU
@@ -705,6 +726,9 @@ status_notifier_set_property (GObject            *object,
         case PROP_TOOLTIP_BODY:
             status_notifier_set_tooltip_body (sn, g_value_get_string (value));
             break;
+        case PROP_ITEM_IS_MENU:
+            status_notifier_set_item_is_menu (sn, g_value_get_boolean (value));
+            break;
 #ifdef USE_DBUSMENU
         case PROP_MENU:
             status_notifier_set_context_menu (sn, g_value_get_object (value));
@@ -782,6 +806,9 @@ status_notifier_get_property (GObject            *object,
             break;
         case PROP_TOOLTIP_BODY:
             g_value_set_string (value, priv->tooltip_body);
+            break;
+        case PROP_ITEM_IS_MENU:
+            g_value_set_boolean (value, priv->item_is_menu);
             break;
 #ifdef USE_DBUSMENU
         case PROP_MENU:
@@ -1674,9 +1701,11 @@ get_prop (GDBusConnection        *conn,
 
         return variant;
     }
-#ifdef USE_DBUSMENU
+    else if (!g_strcmp0 (property, "ItemIsMenu"))
+        return g_variant_new ("b", priv->item_is_menu);
     else if (!g_strcmp0 (property, "Menu"))
     {
+#ifdef USE_DBUSMENU
         if (priv->menu_service != NULL)
         {
             GValue strval = { 0 };
@@ -1690,9 +1719,9 @@ get_prop (GDBusConnection        *conn,
             return var;
         }
         else
+#endif
             return g_variant_new ("o", "/NO_DBUSMENU");
     }
-#endif
 
     g_return_val_if_reached (NULL);
 }
@@ -2003,6 +2032,42 @@ status_notifier_get_state (StatusNotifier          *sn)
 {
     g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), FALSE);
     return sn->priv->state;
+}
+
+/**
+ * status_notifier_set_item_is_menu:
+ * @sn: A #StatusNotifier
+ * @is_menu: Whether or not @sn only supports context menu
+ *
+ * This is only an indication for the visualization (i.e. the
+ * StatusNotifierHost) as to how to handle user interactions.
+ *
+ * Specifically, if %TRUE it should prefer showing the menu (when set via
+ * #StatusNotifier:menu or status_notifier_set_context_menu()) or trigger
+ * #StatusNotifier::context-menu instead of #StatusNotifier::activate
+ */
+void
+status_notifier_set_item_is_menu (StatusNotifier          *sn,
+                                  gboolean                 is_menu)
+{
+    g_return_if_fail (IS_STATUS_NOTIFIER (sn));
+    sn->priv->item_is_menu = is_menu;
+}
+
+/**
+ * status_notifier_get_item_is_menu:
+ * @sn: A #StatusNotifier
+ *
+ * Returns whether or not @sn only supports context menu. See
+ * status_notifier_set_item_is_menu() for more.
+ *
+ * Returns: Whether or not @sn only supports context menu
+ */
+gboolean
+status_notifier_get_item_is_menu (StatusNotifier          *sn)
+{
+    g_return_val_if_fail (IS_STATUS_NOTIFIER (sn), FALSE);
+    return sn->priv->item_is_menu;
 }
 
 #ifdef USE_DBUSMENU

@@ -51,6 +51,7 @@ struct config
     } icon[_NB_STATUS_NOTIFIER_ICONS];
     gchar *tooltip_title;
     gchar *tooltip_body;
+    gboolean item_is_menu;
 #ifdef USE_DBUSMENU
     gboolean menu;
 #endif
@@ -307,6 +308,8 @@ parse_cmdline (struct config *cfg, gint *argc, gchar **argv[], GError **error)
             "Set TITLE as title of the item's tooltip", "TITLE" },
         { "tooltip-body",       'b',    0, G_OPTION_ARG_STRING,     &cfg->tooltip_body,
             "Set TEXT as body of the item's tooltip", "TEXT" },
+        { "item-is-menu",       'M',    0, G_OPTION_ARG_NONE,       &cfg->item_is_menu,
+            "Whether the item only supports context menu or not", NULL},
 #ifdef USE_DBUSMENU
         { "dbus-menu",          'm',    0, G_OPTION_ARG_NONE,       &cfg->menu,
             "Whether menu should be exposed via dbusmenu or not", NULL },
@@ -361,6 +364,7 @@ main (gint argc, gchar *argv[])
             "category",         cfg.category,
             "status",           cfg.status,
             "title",            (cfg.title) ? cfg.title : "Example",
+            "item-is-menu",     cfg.item_is_menu,
             NULL);
     for (i = 0; i < _NB_STATUS_NOTIFIER_ICONS; ++i)
     {

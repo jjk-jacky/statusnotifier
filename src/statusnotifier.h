@@ -301,6 +301,11 @@ void                    status_notifier_register (
                                             StatusNotifier          *sn);
 StatusNotifierState     status_notifier_get_state (
                                             StatusNotifier          *sn);
+void                    status_notifier_set_item_is_menu (
+                                            StatusNotifier          *sn,
+                                            gboolean                 is_menu);
+gboolean                status_notifier_get_item_is_menu (
+                                            StatusNotifier          *sn);
 #ifdef USE_DBUSMENU
 void                    status_notifier_set_context_menu (
                                             StatusNotifier          *sn,
