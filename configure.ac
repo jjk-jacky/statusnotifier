@@ -83,7 +83,7 @@ if test "x$dbusmenu" = "xyes"; then
     DEP_CFLAGS="$DEP_CFLAGS $DBUSMENU_CFLAGS"
     DEP_LIBS="$DEP_LIBS $DBUSMENU_LIBS"
 
-    AC_DEFINE([USE_DBUSMENU], , [Use dbusmenu])
+    AC_DEFINE([USE_DBUSMENU], 1, [Use dbusmenu])
     dbusmenu=yes
 else
     dbusmenu=no
