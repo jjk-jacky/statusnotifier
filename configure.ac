@@ -3,6 +3,8 @@
 
 # package version
 m4_define([pkg_version], [0.1.0])
+# REMEMBER to replace all @NEXT_VERSION@ by the new version number if needed
+# (used for doc, in Since: mostly).
 
 # library version
 #
