@@ -29,7 +29,8 @@
 #include "interfaces.h"
 #include "closures.h"
 
-#ifdef USE_DBUSMENU
+#if USE_DBUSMENU
+#include <gtk/gtk.h>
 #include <libdbusmenu-glib/menuitem.h>
 #include <libdbusmenu-glib/server.h>
 #include <libdbusmenu-gtk/parser.h>
@@ -104,9 +105,7 @@ enum
     PROP_TOOLTIP_TITLE,
     PROP_TOOLTIP_BODY,
     PROP_ITEM_IS_MENU,
-#ifdef USE_DBUSMENU
     PROP_MENU,
-#endif
     PROP_WINDOW_ID,
 
     PROP_STATE,
@@ -164,9 +163,9 @@ struct _StatusNotifierItemPrivate
     guint dbus_owner_id;
     guint dbus_reg_id;
     GDBusProxy *dbus_proxy;
-#ifdef USE_DBUSMENU
+#if USE_DBUSMENU
     DbusmenuServer *menu_service;
-    GtkWidget *menu;
+    GObject *menu;
 #endif
     GDBusConnection *dbus_conn;
     GError *dbus_err;
@@ -476,21 +475,26 @@ status_notifier_item_class_init (StatusNotifierItemClass *klass)
                 FALSE,
                 G_PARAM_READWRITE);
 
-#ifdef USE_DBUSMENU
      /**
      * StatusNotifierItem:menu:
      *
      * A #GtkMenu can be exposed via DBusMenu protocol to have native Look&Feel.
      * When menu is exposed, no "context-menu" signals will be received.
      *
-     * Only available if dbusmenu support was enabled in compile-time.
+     * Only writable if dbusmenu support was enabled during compilation. See
+     * status_notifier_item_set_context_menu() for how to check whether it is
+     * available or not.
      */
     status_notifier_item_props[PROP_MENU] =
         g_param_spec_object ("menu", "menu",
                 "Context menu to be exposed via dbus",
-                GTK_TYPE_WIDGET,
-                G_PARAM_READWRITE);
+                G_TYPE_OBJECT,
+#if USE_DBUSMENU
+                G_PARAM_READWRITE
+#else
+                G_PARAM_READABLE
 #endif
+                );
 
     /**
      * StatusNotifierItem:window-id:
@@ -731,7 +735,7 @@ status_notifier_item_set_property (GObject            *object,
         case PROP_ITEM_IS_MENU:
             status_notifier_item_set_item_is_menu (sn, g_value_get_boolean (value));
             break;
-#ifdef USE_DBUSMENU
+#if USE_DBUSMENU
         case PROP_MENU:
             status_notifier_item_set_context_menu (sn, g_value_get_object (value));
             break;
@@ -812,11 +816,9 @@ status_notifier_item_get_property (GObject            *object,
         case PROP_ITEM_IS_MENU:
             g_value_set_boolean (value, priv->item_is_menu);
             break;
-#ifdef USE_DBUSMENU
         case PROP_MENU:
             g_value_set_object (value, status_notifier_item_get_context_menu (sn));
             break;
-#endif
         case PROP_WINDOW_ID:
             g_value_set_uint (value, priv->window_id);
             break;
@@ -867,7 +869,7 @@ dbus_free (StatusNotifierItem *sn)
         g_object_unref (priv->dbus_proxy);
         priv->dbus_proxy = NULL;
     }
-#ifdef USE_DBUSMENU
+#if USE_DBUSMENU
     if (priv->menu)
     {
         g_object_unref (priv->menu);
@@ -1707,7 +1709,7 @@ get_prop (GDBusConnection        *conn,
         return g_variant_new ("b", priv->item_is_menu);
     else if (!g_strcmp0 (property, "Menu"))
     {
-#ifdef USE_DBUSMENU
+#if USE_DBUSMENU
         if (priv->menu_service != NULL)
         {
             GValue strval = { 0 };
@@ -2074,7 +2076,6 @@ status_notifier_item_get_item_is_menu (StatusNotifierItem      *sn)
     return sn->priv->item_is_menu;
 }
 
-#ifdef USE_DBUSMENU
 /**
  * status_notifier_item_set_context_menu:
  * @sn: A #StatusNotifierItem
@@ -2087,17 +2088,22 @@ status_notifier_item_get_item_is_menu (StatusNotifierItem      *sn)
  * If @menu is %NULL any current menu will be unset (and
  * #StatusNotifierItem::context_menu signals will be emitted as needed again).
  *
- * Only available if dbusmenu support was enabled in compile-time.
+ * Note that is dbusmenu support wasn't enabled during compilation, this
+ * function does nothing but returning %FALSE, thus allowing you to fallback on
+ * handling the #StatusNotifierItem::context_menu signal.
+ *
+ * Returns: %TRUE is dbusmenu support is available, else %FALSE
  */
-void
+gboolean
 status_notifier_item_set_context_menu (StatusNotifierItem      *sn,
-                                       GtkWidget               *menu)
+                                       GObject                 *menu)
 {
+#if USE_DBUSMENU
     StatusNotifierItemPrivate *priv;
     DbusmenuMenuitem *root = NULL;
 
-    g_return_if_fail (STATUS_NOTIFIER_IS_ITEM (sn));
-    g_return_if_fail (!menu || GTK_IS_MENU (menu));
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), FALSE);
+    g_return_val_if_fail (!menu || GTK_IS_MENU (menu), FALSE);
     priv = sn->priv;
 
     if (priv->menu)
@@ -2109,7 +2115,7 @@ status_notifier_item_set_context_menu (StatusNotifierItem      *sn,
     {
         g_object_ref_sink (priv->menu);
 
-        root = dbusmenu_gtk_parse_menu_structure (priv->menu);
+        root = dbusmenu_gtk_parse_menu_structure (GTK_WIDGET (priv->menu));
 
         if (priv->menu_service == NULL)
             priv->menu_service = dbusmenu_server_new ("/MenuBar");
@@ -2125,6 +2131,11 @@ status_notifier_item_set_context_menu (StatusNotifierItem      *sn,
         g_object_unref (priv->menu_service);
         priv->menu_service = NULL;
     }
+
+    return TRUE;
+#else
+    return FALSE;
+#endif
 }
 
 /**
@@ -2133,18 +2144,24 @@ status_notifier_item_set_context_menu (StatusNotifierItem      *sn,
  *
  * Returns the #GtkWidget set as context menu, or %NULL
  *
- * Only available if dbusmenu support was enabled in compile-time.
+ * Note that if dbusmenu support wasn't enabled during compilation it will
+ * always return %NULL. See status_notifier_item_set_context_menu() for how to
+ * check.
  *
- * Returns: (transfer none): #GtkWidget or %NULL (if menu was not setuped)
+ * Returns: (transfer none): #GtkWidget or %NULL (no menu set, or no support
+ * compiled in)
  */
-GtkWidget *
+GObject *
 status_notifier_item_get_context_menu (StatusNotifierItem      *sn)
 {
+#if USE_DBUSMENU
     StatusNotifierItemPrivate *priv;
 
     g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), NULL);
     priv = sn->priv;
 
     return priv->menu;
-}
+#else
+    return NULL;
 #endif
+}

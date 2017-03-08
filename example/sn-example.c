@@ -380,7 +380,7 @@ main (gint argc, gchar *argv[])
 
 #ifdef USE_DBUSMENU
     if (cfg.menu)
-        status_notifier_item_set_context_menu (sn, (GtkWidget *) create_menu(sn, loop));
+        status_notifier_item_set_context_menu (sn, (GObject *) create_menu(sn, loop));
     else
 #endif
         g_signal_connect (sn, "context-menu", (GCallback) sn_menu, loop);
