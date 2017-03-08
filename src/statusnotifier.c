@@ -36,6 +36,8 @@
 #include <libdbusmenu-gtk/parser.h>
 #endif
 
+#define _UNUSED_                __attribute__ ((unused))
+
 /**
  * SECTION:statusnotifier
  * @Short_description: A StatusNotifierItem as per KDE's specifications
@@ -159,7 +161,7 @@ struct _StatusNotifierItemPrivate
 
     StatusNotifierState state;
     guint dbus_watch_id;
-    guint dbus_sid;
+    gulong dbus_sid;
     guint dbus_owner_id;
     guint dbus_reg_id;
     GDBusProxy *dbus_proxy;
@@ -1528,10 +1530,10 @@ status_notifier_item_get_tooltip_body (StatusNotifierItem      *sn)
 }
 
 static void
-method_call (GDBusConnection        *conn,
-             const gchar            *sender,
-             const gchar            *object,
-             const gchar            *interface,
+method_call (GDBusConnection        *conn _UNUSED_,
+             const gchar            *sender _UNUSED_,
+             const gchar            *object _UNUSED_,
+             const gchar            *interface _UNUSED_,
              const gchar            *method,
              GVariant               *params,
              GDBusMethodInvocation  *invocation,
@@ -1602,7 +1604,7 @@ get_builder_for_icon_pixmap (StatusNotifierItem *sn, StatusNotifierIcon icon)
 #if G_BYTE_ORDER == G_LITTLE_ENDIAN
     guint i, max;
 
-    max = (stride * height) / sizeof (guint);
+    max = (guint) (stride * height) / sizeof (guint);
     for (i = 0; i < max; ++i)
         data[i] = GUINT_TO_BE (data[i]);
 #endif
@@ -1614,7 +1616,7 @@ get_builder_for_icon_pixmap (StatusNotifierItem *sn, StatusNotifierIcon icon)
     g_variant_builder_add_value (builder,
             g_variant_new_from_data (G_VARIANT_TYPE ("ay"),
                 data,
-                stride * height,
+                (gsize) (stride * height),
                 TRUE,
                 (GDestroyNotify) cairo_surface_destroy,
                 surface));
@@ -1623,12 +1625,12 @@ get_builder_for_icon_pixmap (StatusNotifierItem *sn, StatusNotifierIcon icon)
 }
 
 static GVariant *
-get_prop (GDBusConnection        *conn,
-          const gchar            *sender,
-          const gchar            *object,
-          const gchar            *interface,
+get_prop (GDBusConnection        *conn _UNUSED_,
+          const gchar            *sender _UNUSED_,
+          const gchar            *object _UNUSED_,
+          const gchar            *interface _UNUSED_,
           const gchar            *property,
-          GError                **error,
+          GError                **error _UNUSED_,
           gpointer                data)
 {
     StatusNotifierItem *sn = (StatusNotifierItem *) data;
@@ -1751,7 +1753,7 @@ dbus_failed (StatusNotifierItem *sn, GError *error, gboolean fatal)
 }
 
 static void
-bus_acquired (GDBusConnection *conn, const gchar *name, gpointer data)
+bus_acquired (GDBusConnection *conn, const gchar *name _UNUSED_, gpointer data)
 {
     GError *err = NULL;
     StatusNotifierItem *sn = (StatusNotifierItem *) data;
@@ -1801,7 +1803,7 @@ register_item_cb (GObject *sce, GAsyncResult *result, gpointer data)
 }
 
 static void
-name_acquired (GDBusConnection *conn, const gchar *name, gpointer data)
+name_acquired (GDBusConnection *conn _UNUSED_, const gchar *name, gpointer data)
 {
     StatusNotifierItem *sn = (StatusNotifierItem *) data;
     StatusNotifierItemPrivate *priv = sn->priv;
@@ -1819,7 +1821,7 @@ name_acquired (GDBusConnection *conn, const gchar *name, gpointer data)
 }
 
 static void
-name_lost (GDBusConnection *conn, const gchar *name, gpointer data)
+name_lost (GDBusConnection *conn, const gchar *name _UNUSED_, gpointer data)
 {
     GError *err = NULL;
     StatusNotifierItem *sn = (StatusNotifierItem *) data;
@@ -1857,10 +1859,10 @@ dbus_reg_item (StatusNotifierItem *sn)
 }
 
 static void
-watcher_signal (GDBusProxy          *proxy,
-                const gchar         *sender,
+watcher_signal (GDBusProxy          *proxy _UNUSED_,
+                const gchar         *sender _UNUSED_,
                 const gchar         *signal,
-                GVariant            *params,
+                GVariant            *params _UNUSED_,
                 StatusNotifierItem  *sn)
 {
     StatusNotifierItemPrivate *priv = sn->priv;
@@ -1875,7 +1877,7 @@ watcher_signal (GDBusProxy          *proxy,
 }
 
 static void
-proxy_cb (GObject *sce, GAsyncResult *result, gpointer data)
+proxy_cb (GObject *sce _UNUSED_, GAsyncResult *result, gpointer data)
 {
     GError *err = NULL;
     StatusNotifierItem *sn = (StatusNotifierItem *) data;
@@ -1918,9 +1920,9 @@ proxy_cb (GObject *sce, GAsyncResult *result, gpointer data)
 }
 
 static void
-watcher_appeared (GDBusConnection   *conn,
-                  const gchar       *name,
-                  const gchar       *owner,
+watcher_appeared (GDBusConnection   *conn _UNUSED_,
+                  const gchar       *name _UNUSED_,
+                  const gchar       *owner _UNUSED_,
                   gpointer           data)
 {
     StatusNotifierItem *sn = data;
@@ -1944,8 +1946,8 @@ watcher_appeared (GDBusConnection   *conn,
 }
 
 static void
-watcher_vanished (GDBusConnection   *conn,
-                  const gchar       *name,
+watcher_vanished (GDBusConnection   *conn _UNUSED_,
+                  const gchar       *name _UNUSED_,
                   gpointer           data)
 {
     GError *err = NULL;
