@@ -1,4 +1,37 @@
 
+# 2017-03-10, v1.0.0
+
+With contributions from Bradley Xu and Vladimir Perepechin.
+
+!!! Renaming of StatusNotifier to StatusNotifierItem, and all functions from
+    status_notifier_XXX to status_notifier_item_XXX
+
+    Yes, this breaks things. It's unfortunate, but we didn't really follow the
+    GObject convention for naming things, and as a result it made things a bit
+    awkward/complicated when it comes to introspection, and bindings to use
+    statusnotifier from other languages (e.g. Perl).
+
+    There was no other changes, only typedef/functions/macros renamed, so fixing
+    code written for previous version is only a matter or search&replace.
+
+    Note that a statusnotifier-compat.h is provided, that defines a bunch of
+    macros and should allow old code to keep working without any changes
+    required, only this extra include. As a transitional aid of sorts.
+
++++ Add optional dbusmenu support via libdbusmenu
+
++++ Add optional generation of introspection data. Thanks to Frédéric Buclin for
+    his help.
+
+ +  Update to newer specs; Add item-is-menu
+
+ !  Fix possibly using wrong scroll orientation
+
+ !  Fix getting/setting property window-id
+
+ *  Other fixes/cleanups; see git log for details
+
+
 # 2014-06-08, v0.1.0
 
  *  first release

@@ -471,7 +471,7 @@ status_notifier_item_class_init (StatusNotifierItemClass *klass)
      * Whether or not this #StatusNotifierItem only supports a context menu or
      * not. See status_notifier_item_set_item_is_menu() for more.
      *
-     * Since: @NEXT_VERSION@
+     * Since: 1.0.0
      */
     status_notifier_item_props[PROP_ITEM_IS_MENU] =
         g_param_spec_boolean ("item-is-menu", "item-is-menu",
@@ -489,7 +489,7 @@ status_notifier_item_class_init (StatusNotifierItemClass *klass)
      * status_notifier_item_set_context_menu() for how to check whether it is
      * available or not.
      *
-     * Since: @NEXT_VERSION@
+     * Since: 1.0.0
      */
     status_notifier_item_props[PROP_MENU] =
         g_param_spec_object ("menu", "menu",
@@ -2058,7 +2058,7 @@ status_notifier_item_get_state (StatusNotifierItem      *sn)
  * trigger #StatusNotifierItem::context-menu instead of
  * #StatusNotifierItem::activate
  *
- * Since: @NEXT_VERSION@
+ * Since: 1.0.0
  */
 void
 status_notifier_item_set_item_is_menu (StatusNotifierItem      *sn,
@@ -2077,7 +2077,7 @@ status_notifier_item_set_item_is_menu (StatusNotifierItem      *sn,
  *
  * Returns: Whether or not @sn only supports context menu
  *
- * Since: @NEXT_VERSION@
+ * Since: 1.0.0
  */
 gboolean
 status_notifier_item_get_item_is_menu (StatusNotifierItem      *sn)
@@ -2104,7 +2104,7 @@ status_notifier_item_get_item_is_menu (StatusNotifierItem      *sn)
  *
  * Returns: %TRUE is dbusmenu support is available, else %FALSE
  *
- * Since: @NEXT_VERSION@
+ * Since: 1.0.0
  */
 gboolean
 status_notifier_item_set_context_menu (StatusNotifierItem      *sn,
@@ -2163,7 +2163,7 @@ status_notifier_item_set_context_menu (StatusNotifierItem      *sn,
  * Returns: (transfer none): #GtkWidget or %NULL (no menu set, or no support
  * compiled in)
  *
- * Since: @NEXT_VERSION@
+ * Since: 1.0.0
  */
 GObject *
 status_notifier_item_get_context_menu (StatusNotifierItem      *sn)

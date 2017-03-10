@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 # package version
-m4_define([pkg_version], [0.1.0])
+m4_define([pkg_version], [1.0.0])
 # REMEMBER to replace all @NEXT_VERSION@ by the new version number if needed
 # (used for doc, in Since: mostly).
 
@@ -26,12 +26,12 @@ m4_define([pkg_version], [0.1.0])
 #    increment age.
 # 6. If any interfaces have been removed or changed since the last public
 #    release, then set age to 0.
-m4_define([lib_current], [0])
+m4_define([lib_current], [1])
 m4_define([lib_revision], [0])
 m4_define([lib_age], [0])
 
 # GIR namespace version
-m4_define([gir_version], [0.0])
+m4_define([gir_version], [1.0])
 
 
 AC_PREREQ([2.69])
