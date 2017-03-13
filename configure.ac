@@ -44,6 +44,17 @@ AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability foreign silent-rules subdir-objects])
 AM_SILENT_RULES([yes])
 
+# Checks for programs.
+AC_PROG_CC
+AM_PROG_AR
+
+LT_INIT
+LIB_VERSION_INFO="lib_current:lib_revision:lib_age"
+AC_SUBST(LIB_VERSION_INFO)
+
+GIR_VERSION="gir_version"
+AC_SUBST(GIR_VERSION)
+
 # Option to make doc
 m4_ifdef([GTK_DOC_CHECK], [
 GTK_DOC_CHECK([1.19],[--flavour no-tmpl])
@@ -56,17 +67,6 @@ AC_PATH_PROG([XSLTPROC], [xsltproc])
 ],[
 AM_CONDITIONAL([ENABLE_GTK_DOC], false)
 ])
-
-# Checks for programs.
-AC_PROG_CC
-AM_PROG_AR
-
-LT_INIT
-LIB_VERSION_INFO="lib_current:lib_revision:lib_age"
-AC_SUBST(LIB_VERSION_INFO)
-
-GIR_VERSION="gir_version"
-AC_SUBST(GIR_VERSION)
 
 # Option for example
 AC_ARG_ENABLE([example],

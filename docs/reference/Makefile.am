@@ -70,7 +70,7 @@ expand_content_files=
 # e.g. GTKDOC_CFLAGS=-I$(top_srcdir) -I$(top_builddir) $(GTK_DEBUG_FLAGS)
 # e.g. GTKDOC_LIBS=$(top_builddir)/gtk/$(gtktargetlib)
 GTKDOC_CFLAGS=$(DEP_CFLAGS)
-GTKDOC_LIBS=$(DEP_LIBS) $(top_builddir)/.libs/libstatusnotifier.a
+GTKDOC_LIBS=$(top_builddir)/.libs/libstatusnotifier.la
 
 # This includes the standard gtk-doc make rules, copied by gtkdocize.
 include $(top_srcdir)/gtk-doc.make
