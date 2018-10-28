@@ -111,6 +111,7 @@ enum
     PROP_WINDOW_ID,
 
     PROP_STATE,
+    PROP_REGISTER_NAME_ON_BUS,
 
     NB_PROPS
 };
@@ -164,6 +165,7 @@ struct _StatusNotifierItemPrivate
     gulong dbus_sid;
     guint dbus_owner_id;
     guint dbus_reg_id;
+    gint register_bus_name;
     GDBusProxy *dbus_proxy;
 #if USE_DBUSMENU
     DbusmenuServer *menu_service;
@@ -531,6 +533,29 @@ status_notifier_item_class_init (StatusNotifierItemClass *klass)
                 STATUS_NOTIFIER_STATE_NOT_REGISTERED,
                 G_PARAM_READABLE);
 
+    /**
+     * StatusNotifierItem:register-name-on-bus:
+     *
+     * Determines if the item will register a `org.kde.StatusNotifierItem-*` name
+     * on the bus. This is the recommended behavior by the spec but may cause
+     * issues with sandboxing that does not permit bus name ownership. Disabling
+     * it may have issues with some StatusNotifier implementations.
+     *
+     * The value `-1` will on first use detect if running inside a sandbox
+     * (by `/.flatpak-info` existing) and then automatically set the value to
+     * `0` or `1` accordingly.
+     *
+     * The values `0` and `1` are disabled and enabled respectively.
+     *
+     * Since: 1.1.0
+     */
+    status_notifier_item_props[PROP_REGISTER_NAME_ON_BUS] =
+        g_param_spec_int ("register-name-on-bus", "Register name on bus",
+                "If the item will register a name on the bus",
+                -1, 1, -1,
+                G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+
+
     g_object_class_install_properties (o_class, NB_PROPS, status_notifier_item_props);
 
     /**
@@ -749,6 +774,9 @@ status_notifier_item_set_property (GObject            *object,
         case PROP_WINDOW_ID:
             status_notifier_item_set_window_id (sn, g_value_get_uint (value));
             break;
+        case PROP_REGISTER_NAME_ON_BUS:
+            priv->register_bus_name = g_value_get_int (value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -830,6 +858,9 @@ status_notifier_item_get_property (GObject            *object,
             break;
         case PROP_STATE:
             g_value_set_enum (value, priv->state);
+            break;
+        case PROP_REGISTER_NAME_ON_BUS:
+            g_value_set_int (value, status_notifier_item_get_register_name_on_bus (sn));
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1162,6 +1193,23 @@ status_notifier_item_get_pixbuf (StatusNotifierItem      *sn,
         return NULL;
 
     return g_object_ref (priv->icon[icon].pixbuf);
+}
+
+/**
+ * status_notifier_item_get_register_name_on_bus:
+ * @sn: A #StatusNotifierItem
+ *
+ * Returns if the item will register a name on the bus.
+ * See #StatusNotifierItem:register-name-on-bus
+ *
+ * Returns: `1`, `0`, or `-1`
+ * Since: 1.1.0
+ */
+gint
+status_notifier_item_get_register_name_on_bus (StatusNotifierItem *sn)
+{
+    g_return_val_if_fail (STATUS_NOTIFIER_IS_ITEM (sn), -1);
+    return sn->priv->register_bus_name;
 }
 
 /**
@@ -1837,11 +1885,34 @@ name_lost (GDBusConnection *conn, const gchar *name _UNUSED_, gpointer data)
     dbus_failed (sn, err, TRUE);
 }
 
+static gboolean
+should_register_name (StatusNotifierItem *sn)
+{
+    StatusNotifierItemPrivate *priv = sn->priv;
+
+    /* If running inside Flatpak override the value with what it is actually doing */
+    if (priv->register_bus_name == -1)
+    {
+        priv->register_bus_name = !g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS);
+        g_object_notify (G_OBJECT (sn), "register-name-on-bus");
+    }
+
+    return priv->register_bus_name;
+}
+
 static void
 dbus_reg_item (StatusNotifierItem *sn)
 {
     StatusNotifierItemPrivate *priv = sn->priv;
     gchar buf[64], *b = buf;
+
+    if (!should_register_name (sn))
+    {
+        /* Bypass the normal name registration */
+        bus_acquired (g_dbus_proxy_get_connection (priv->dbus_proxy), NULL, sn);
+        name_acquired (NULL, g_dbus_connection_get_unique_name (priv->dbus_conn), sn);
+        return;
+    }
 
     if (G_UNLIKELY (g_snprintf (buf, 64, "org.kde.StatusNotifierItem-%u-%u",
                     getpid (), ++uniq_id) >= 64))
@@ -1981,6 +2052,9 @@ watcher_vanished (GDBusConnection   *conn _UNUSED_,
  * This function will connect to the StatusNotifierWatcher and make sure at
  * least one StatusNotifierHost is registered. Then, it will register a new
  * StatusNotifierItem on the session bus and register it with the watcher.
+ *
+ * (Note that it might not register a name of the bus depending on the value of
+ * #StatusNotifierItem:register-name-on-bus.)
  *
  * When done, property #StatusNotifierItem:state will change to
  * %STATUS_NOTIFIER_STATE_REGISTERED. If something fails, signal
