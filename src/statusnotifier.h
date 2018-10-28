@@ -308,7 +308,8 @@ gboolean                status_notifier_item_set_context_menu (
                                             GObject                 *menu);
 GObject *               status_notifier_item_get_context_menu (
                                             StatusNotifierItem      *sn);
-
+gint                    status_notifier_item_get_register_name_on_bus (
+                                            StatusNotifierItem      *sn);
 G_END_DECLS
 
 #endif /* __STATUS_NOTIFIER_H__ */
